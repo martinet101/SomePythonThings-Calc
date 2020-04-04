@@ -1,0 +1,18 @@
+
+<html>
+    <link rel="icon" type="image/png" href="icon.png">
+    <title>SomePythonThings Calc</title>
+    <script type="text/javascript" src="/eel.js"></script>
+    <script src="mousetrap/mousetrap/mousetrap.min.js"></script>
+    <script type="text/javascript" src="/script.js"></script>
+
+    <body>
+        <textarea class=text id=text disabled></textarea><br>
+        <button class="grey small" onClick='bracket("(");'>(</button><button class="grey small" onClick='bracket(")");'>)</button><button class="grey small" onClick='operation("**(");'>^</button><button class="light-grey small" onClick='del();'>Delete</button><button class="light-grey small" onClick='clearOperation();'>Clear Operation</button><button class="light-grey small" onClick='clearAll();'>Clear all</button>
+        <br/>
+        <button class="grey big" onClick='number(7);'>7</button><button class="grey big" onClick='number(8);'>8</button><button class="grey big" onClick='number(9);'>9</button><button class="dark-grey big" onClick='operation("/");'>/</button>
+        <br/><button class="grey big" onClick='number(4);'>4</button><button class="grey big" onClick='number(5);'>5</button><button class="grey big" onClick='number(6);'>6</button><button class="dark-grey big" onClick='operation("*");'>*</button>
+        <br/><button class="grey big" onClick='number(1);'>1</button><button class="grey big" onClick='number(2);'>2</button><button class="grey big" onClick='number(3);'>3</button><button class="dark-grey big" onClick='operation("+");'>+</button>
+        <br/><button class="dark-grey big" onClick='dot();'>.</button><button class="grey big" onClick='number(0);'>0</button><button class="turquoise big" onClick='eval_js();'>=</button><button class="dark-grey big" onClick='operation("-");'>-</button>
+        </body>
+</html>
