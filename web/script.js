@@ -1,3 +1,12 @@
+async function checkUpdates() {
+    let result = await eel.checkUpdates_py()();
+    if(result === true){
+        if (confirm("Found new updates. Do you want to download them?")){
+            eel.downloadUpdates();
+        }
+    }
+}
+
 if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
     document.write('<link id="style" rel="stylesheet" type="text/css" href="/style-dark.css"/>');
 } else {
@@ -11,7 +20,7 @@ function mode() {
         document.getElementById('style').href = "style.css";
     }
 }
-
+checkUpdates();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
     mode();
 })
