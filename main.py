@@ -26,3 +26,5 @@ def py_eval(s):
     return str(eval(s))
 eel.init('web')
 eel.start('index.html', mode='chrome', size=(900, 500), port=0)
+while true:
+    eel.sleep(1)
