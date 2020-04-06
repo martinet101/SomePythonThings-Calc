@@ -2,20 +2,17 @@ import eel
 @eel.expose
 def checkUpdates_py():
     import wget
-    actualVersion = 2.0
-    try:
-        url = 'https://www.somepythonthings.tk/versions/windows/calc.html'
-        file = wget.download(url)
-        version = open(file, "r")
-        lastVersion = float(version.read())
-        version.close()
-        import os
-        os.remove(file)
-        if float(actualVersion)<lastVersion:
+    actualVersion = 2.1
+    if True:
+        import struct
+        import urllib.request
+        response = urllib.request.urlopen("https://www.somepythonthings.tk/versions/windows/calc.html")
+        response = response.read().decode("utf8")
+        if float(response)>actualVersion:
             return True
         else:
             return False
-    except:
+    else:
         return False
 @eel.expose
 def downloadUpdates():
@@ -26,5 +23,5 @@ def py_eval(s):
     return str(eval(s))
 eel.init('web')
 eel.start('index.html', mode='chrome', size=(900, 500), port=0)
-while true:
+while True:
     eel.sleep(1)
