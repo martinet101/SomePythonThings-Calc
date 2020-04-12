@@ -6,7 +6,7 @@ def checkUpdates_py():
     if True:
         import struct
         import urllib.request
-        response = urllib.request.urlopen("https://www.somepythonthings.tk/versions/windows/calc.html")
+        response = urllib.request.urlopen("http://www.somepythonthings.tk/versions/windows/calc.html")
         response = response.read().decode("utf8")
         if float(response)>actualVersion:
             return True
