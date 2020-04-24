@@ -120,43 +120,74 @@ var bracketsToClose = 0;
 var needClear = false;
 var previousResult = 0;
 var calcHistory = '';
+var currentOperation = '';
+var isPythonAlive = false;
+var nul = ''
+
+async function checkPython() {
+    let result = await eel.python_alive()();
+    isPythonAlive = result;
+}
+
+nul = checkPython();
 
 async function eval_js() {
-    var startValue = document.getElementById('text').value;
-    var s = document.getElementById('text').value;
-    s = s.split('\n = ');
-    s = s[s.length - 1].replace("\n", "").replace(previousResult, '');
-    let result = await eel.py_eval(s)();
-    document.getElementById('text').value = startValue + "\n = " + result;
-    needClear = true;
-    previousResult = result;
-    console.log(calcHistory);
-    calcHistory = document.getElementById('text').value;
-    document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
+    nul = checkPython();
+    if( isPythonAlive == true ){
+        startValue = document.getElementById('text').value
+        console.log(currentOperation);
+        if (eval(currentOperation) == 'Infinity'){
+            if(confirm('The operation you entered seems to be very heavy. If you continue, Program may crash. You wish to continue?')){
+                let result = await eel.py_eval(currentOperation)();
+                document.getElementById('text').value = startValue + "\n = " + result;
+                needClear = true;
+                previousResult = result;
+                console.log(calcHistory);
+                calcHistory = document.getElementById('text').value;
+                document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
+            }
+        } else {
+            let result = await eel.py_eval(currentOperation)();
+            document.getElementById('text').value = startValue + "\n = " + result;
+            needClear = true;
+            previousResult = result;
+            console.log(calcHistory);
+            calcHistory = document.getElementById('text').value;
+            document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
+        }
+    } else {
+        alert("Connection lost with the python engine. Please restart the program. This may be because you entered a huge operation.");
+    }
 }
 
 function number(n) {
     if (needClear === true) {
         document.getElementById('text').value = document.getElementById('text').value + "\n\n"
         needClear = false;
+        currentOperation = '';
     }
     document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
     document.getElementById('text').value = document.getElementById('text').value + n;
+    currentOperation = currentOperation + n;
     operationAvailable = true;
 }
 
 function operation(o) {
     document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
     if (needClear === true) {
+        previousResult = ''
         document.getElementById('text').value = document.getElementById('text').value + "\n\n" + previousResult;
+        currentOperation = currentOperation + previousResult;
         needClear = false;
     }
     if ("**(/".includes(o)) {
         if (operationAvailable === true) {
             document.getElementById('text').value = document.getElementById('text').value + ' ' + o + ' ';
+            currentOperation = currentOperation +  '' + o + '';
         }
     } else {
         document.getElementById('text').value = document.getElementById('text').value + ' ' + o + ' ';
+        currentOperation = currentOperation + '' + o + '';
     }
     operationAvailable = false;
     dotAvailable = true;
@@ -171,11 +202,13 @@ function bracket(b) {
     if (b === ")") {
         if (bracketsToClose > 0) {
             document.getElementById('text').value = document.getElementById('text').value + ' ' + b + ' ';
+            currentOperation = currentOperation + ''+ b + '' ;
             bracketsToClose = bracketsToClose - 1;
         }
     } else {
         bracketsToClose = bracketsToClose + 1;
         document.getElementById('text').value = document.getElementById('text').value + ' ' + b + ' ';
+        currentOperation = currentOperation + '' + b + '';
     }
 }
 
@@ -184,12 +217,15 @@ function dot() {
     if (dotAvailable === true) {
         document.getElementById('text').value = document.getElementById('text').value + '.';
         dotAvailable = false;
-    }
+        currentOperation = currentOperation + '.';
+    } 
 }
 
 function clearAll() {
     document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
     document.getElementById('text').value = "";
+    needClear = false;
+    currentOperation = ''
 }
 
 function del() {
@@ -199,9 +235,11 @@ function del() {
     checkChar(char);
     if (char === " ") {
         document.getElementById('text').value = text.substr(0, text.length - 1);
+        currentOperation = currentOperation.substr(0, currentOperation.length-1);
         delAfterSpace();
     } else {
         document.getElementById('text').value = text.substr(0, text.length - 1);
+        currentOperation = currentOperation.substr(0, currentOperation.length-1);
     }
 }
 
@@ -212,9 +250,11 @@ function delAfterSpace() {
     checkChar(char);
     if (char === " ") {
         document.getElementById('text').value = text.substr(0, text.length - 1);
+        currentOperation = currentOperation.substr(0, currentOperation.length-1);
         delAfterSpace();
     } else {
         document.getElementById('text').value = text.substr(0, text.length - 1);
+        currentOperation = currentOperation.substr(0, currentOperation.length-1);
         delOnlyIfSpace();
     }
 }
@@ -226,6 +266,7 @@ function delOnlyIfSpace() {
     checkChar(char);
     if (char === " ") {
         document.getElementById('text').value = text.substr(0, text.length - 1);
+        currentOperation = currentOperation.substr(0, currentOperation.length-1);
         delOnlyIfSpace();
     }
 }
@@ -244,4 +285,5 @@ function checkChar(c) {
 
 function clearOperation() {
     document.getElementById('text').value = calcHistory + "\n\n";
+    currentOperation = '';
 }
