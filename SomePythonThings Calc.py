@@ -1,7 +1,7 @@
 import eel
 @eel.expose
 def checkUpdates_py():
-    actualVersion = 2.2
+    actualVersion = 2.3
     if True:
         import struct
         import urllib.request

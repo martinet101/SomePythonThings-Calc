@@ -132,12 +132,15 @@ async function checkPython() {
 nul = checkPython();
 
 async function eval_js() {
+    while (bracketsToClose>0){
+        bracket(')');
+    } 
     nul = checkPython();
     if( isPythonAlive == true ){
         startValue = document.getElementById('text').value
         console.log(currentOperation);
         if (eval(currentOperation) == 'Infinity'){
-            if(confirm('The operation you entered seems to be very heavy. If you continue, Program may crash. You wish to continue?')){
+            if(confirm('The operation you entered seems to be very heavy. If you continue, Program may crash. Do you want to continue?')){
                 let result = await eel.py_eval(currentOperation)();
                 document.getElementById('text').value = startValue + "\n = " + result;
                 needClear = true;
@@ -175,19 +178,18 @@ function number(n) {
 function operation(o) {
     document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
     if (needClear === true) {
-        previousResult = ''
         document.getElementById('text').value = document.getElementById('text').value + "\n\n" + previousResult;
-        currentOperation = currentOperation + previousResult;
+        currentOperation = previousResult;
         needClear = false;
     }
     if ("**(/".includes(o)) {
         if (operationAvailable === true) {
             document.getElementById('text').value = document.getElementById('text').value + ' ' + o + ' ';
-            currentOperation = currentOperation +  '' + o + '';
+            currentOperation = currentOperation +  ' ' + o + ' ';
         }
     } else {
         document.getElementById('text').value = document.getElementById('text').value + ' ' + o + ' ';
-        currentOperation = currentOperation + '' + o + '';
+        currentOperation = currentOperation + ' ' + o + ' ';
     }
     operationAvailable = false;
     dotAvailable = true;
@@ -202,13 +204,13 @@ function bracket(b) {
     if (b === ")") {
         if (bracketsToClose > 0) {
             document.getElementById('text').value = document.getElementById('text').value + ' ' + b + ' ';
-            currentOperation = currentOperation + ''+ b + '' ;
+            currentOperation = currentOperation + ' '+ b + ' ' ;
             bracketsToClose = bracketsToClose - 1;
         }
     } else {
         bracketsToClose = bracketsToClose + 1;
         document.getElementById('text').value = document.getElementById('text').value + ' ' + b + ' ';
-        currentOperation = currentOperation + '' + b + '';
+        currentOperation = currentOperation + ' ' + b + ' ';
     }
 }
 
@@ -226,6 +228,9 @@ function clearAll() {
     document.getElementById('text').value = "";
     needClear = false;
     currentOperation = ''
+    dotAvailable = true
+    operationAvailable = false
+    bracketsToClose = 0
 }
 
 function del() {
@@ -286,4 +291,7 @@ function checkChar(c) {
 function clearOperation() {
     document.getElementById('text').value = calcHistory + "\n\n";
     currentOperation = '';
+    dotAvailable = true
+    operationAvailable = false
+    bracketsToClose = 0
 }
