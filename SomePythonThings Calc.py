@@ -16,7 +16,7 @@ def checkUpdates_py():
 @eel.expose
 def downloadUpdates():
     import webbrowser
-    webbrowser.open_new('https://www.somepythonthings.tk/programs/sptcalc.html')
+    webbrowser.open_new('https://www.somepythonthings.tk/programs/somepythonthings-calc/')
 @eel.expose
 def py_eval(s):
     print(s)
