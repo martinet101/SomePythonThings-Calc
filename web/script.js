@@ -1,3 +1,5 @@
+
+
 async function checkUpdates() {
     let result = await eel.checkUpdates_py()();
     if(result === true){
@@ -134,7 +136,7 @@ nul = checkPython();
 async function eval_js() {
     while (bracketsToClose>0){
         bracket(')');
-    } 
+    }
     nul = checkPython();
     if( isPythonAlive == true ){
         startValue = document.getElementById('text').value
@@ -143,8 +145,16 @@ async function eval_js() {
             if(confirm('The operation you entered seems to be very heavy. If you continue, Program may crash. Do you want to continue?')){
                 let result = await eel.py_eval(currentOperation)();
                 document.getElementById('text').value = startValue + "\n = " + result;
-                needClear = true;
-                previousResult = result;
+                console.log(typeof result);
+                if (!(result.includes('Oh 💩, You did it again! The operation is too hard to be calculated!'))){
+                    needClear = true;
+                    previousResult = result;
+                } else {
+                    needClear = true;
+                    operationAvailable = false;
+                    bracketsToClose = 0;
+                    dotAvailable = false;
+                }
                 console.log(calcHistory);
                 calcHistory = document.getElementById('text').value;
                 document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
@@ -152,8 +162,16 @@ async function eval_js() {
         } else {
             let result = await eel.py_eval(currentOperation)();
             document.getElementById('text').value = startValue + "\n = " + result;
-            needClear = true;
-            previousResult = result;
+            console.log(typeof result);
+            if (!(result.includes('Oh 💩, You did it again! The operation is too hard to be calculated!'))){
+                needClear = true;
+                previousResult = result;
+            } else {
+                needClear = true;
+                operationAvailable = false;
+                bracketsToClose = 0;
+                dotAvailable = false;
+            }
             console.log(calcHistory);
             calcHistory = document.getElementById('text').value;
             document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
@@ -224,13 +242,7 @@ function dot() {
 }
 
 function clearAll() {
-    document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
-    document.getElementById('text').value = "";
-    needClear = false;
-    currentOperation = ''
-    dotAvailable = true
-    operationAvailable = false
-    bracketsToClose = 0
+    location.reload();
 }
 
 function del() {
