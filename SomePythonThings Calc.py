@@ -29,10 +29,30 @@ def py_eval(s):
 @eel.expose()
 def python_alive():
     return True
+
+def server_process():
+    print('Starting Eel')
+    eel.start('index.html',mode=None, size=(900, 500), port=4567,  block=False)
+    while True:
+        print("Eel Server Running")
+        eel.sleep(1.0)   
+
+import eel
 eel.init('web')
 
+if __name__ == '__main__':
+    
+    from cefpython3 import cefpython as cef
+    from multiprocessing import Process
+    import sys
+    p = Process(target=server_process)
+    p.start()
+    sys.excepthook = cef.ExceptHook
+    cef.Initialize()
+    cef.CreateBrowserSync(url="localhost:4567/index.html")
+    cef.MessageLoop()
+    cef.Shutdown()
 
 
-eel.start('index.html', mode='chrome', size=(900, 500), port=0)
-while True:
-    eel.sleep(1)
+
+
