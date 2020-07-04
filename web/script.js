@@ -1,5 +1,3 @@
-
-
 async function checkUpdates() {
     let result = await eel.checkUpdates_py()();
     if(result === true){
@@ -28,94 +26,166 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', fun
 })
 
 Mousetrap.bind('0', function () {
-    number(0);
+    if(canWrite){
+        number(0);
+    }
 });
 
 Mousetrap.bind('1', function () {
-    number(1);
+    if(canWrite){
+        number(1);
+    }
 });
 
 Mousetrap.bind('2', function () {
-    number(2);
+    if(canWrite){
+        number(2);
+    }
 });
 
 Mousetrap.bind('3', function () {
-    number(3);
+    if(canWrite){
+        number(3);
+    }
 });
 
 Mousetrap.bind('4', function () {
-    number(4);
+    if(canWrite){
+        number(4);
+    }
 });
 
 Mousetrap.bind('5', function () {
-    number(5);
+    if(canWrite){
+        number(5);
+    }
 });
 
 Mousetrap.bind('6', function () {
-    number(6);
+    if(canWrite){
+        number(6);
+    }
 });
 
 Mousetrap.bind('7', function () {
+    if (canWrite){
     number(7);
+    }
 });
 
 Mousetrap.bind('8', function () {
+    if (canWrite){
     number(8);
+    }
 });
 
 Mousetrap.bind('9', function () {
+    if (canWrite){
     number(9);
+    }
 });
 
 Mousetrap.bind('+', function () {
+    if (canWrite){
     operation("+");
+    }
 });
 
 Mousetrap.bind('-', function () {
+    if (canWrite){
     operation("-");
+    }
 });
 
 Mousetrap.bind('*', function () {
+    if (canWrite){
     operation("*");
+    }
 });
 
 Mousetrap.bind('/', function () {
+    if (canWrite){
     operation("/");
+    }
 });
 
 Mousetrap.bind('^', function () {
+    if (canWrite){
     operation("**(");
+    }
 });
 
 Mousetrap.bind('(', function () {
+    if (canWrite){
     bracket("(");
+    }
 });
 
 Mousetrap.bind(')', function () {
+    if (canWrite){
     bracket(")");
+    }
 });
 
 Mousetrap.bind('.', function () {
+    if (canWrite){
     dot();
+    }
 });
 
 Mousetrap.bind(',', function () {
+    if (canWrite){
     dot();
+    }
 });
 
 Mousetrap.bind('=', function () {
+    if (canWrite){
     eval_js();
+    }
 });
 
 Mousetrap.bind('enter', function () {
+    if (canWrite){
     eval_js();
+    }
 });
 
 Mousetrap.bind('backspace', function () {
+    if (canWrite){
     del();
+    }
 });
 
 
+function disableAll() {
+    canWrite = false
+    var x = document.getElementsByClassName("big");
+    var i;
+    for (i = 0; i < x.length; i++) {
+        x[i].disabled = true;
+        }
+    var x = document.getElementsByClassName("small");
+    var i;
+    for (i = 0; i < x.length; i++) {
+        x[i].disabled = true;
+        }
+    }
+
+function enableAll() {
+    canWrite = true
+    var x = document.getElementsByClassName("small");
+    var i;
+    for (i = 0; i < x.length; i++) {
+        x[i].disabled = false;
+        }
+    var x = document.getElementsByClassName("big");
+    var i;
+    for (i = 0; i < x.length; i++) {
+        x[i].disabled = false;
+        }
+    }
+var canWrite = true;
 var operationAvailable = false;
 var dotAvailable = true;
 var bracketsToClose = 0;
@@ -134,49 +204,52 @@ async function checkPython() {
 nul = checkPython();
 
 async function eval_js() {
-    while (bracketsToClose>0){
-        bracket(')');
-    }
-    nul = checkPython();
-    if( isPythonAlive == true ){
+    if (true){
         startValue = document.getElementById('text').value
         console.log(currentOperation);
         if (eval(currentOperation) == 'Infinity'){
             if(confirm('The operation you entered seems to be very heavy. If you continue, Program may crash. Do you want to continue?')){
+                disableAll();
                 let result = await eel.py_eval(currentOperation)();
+                enableAll();
+                console.log(result);
                 document.getElementById('text').value = startValue + "\n = " + result;
                 console.log(typeof result);
                 if (!(result.includes('Oh 💩, You did it again! The operation is too hard to be calculated!'))){
                     needClear = true;
                     previousResult = result;
+                    dotAvailable = true;
                 } else {
                     needClear = true;
+                    dotAvailable = false;
                     operationAvailable = false;
                     bracketsToClose = 0;
-                    dotAvailable = false;
                 }
                 console.log(calcHistory);
                 calcHistory = document.getElementById('text').value;
                 document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
             }
         } else {
+            disableAll();
             let result = await eel.py_eval(currentOperation)();
+            enableAll();
+            console.log(result);
             document.getElementById('text').value = startValue + "\n = " + result;
-            console.log(typeof result);
             if (!(result.includes('Oh 💩, You did it again! The operation is too hard to be calculated!'))){
                 needClear = true;
+                dotAvailable = true;
                 previousResult = result;
             } else {
                 needClear = true;
+                dotAvailable = false;
                 operationAvailable = false;
                 bracketsToClose = 0;
-                dotAvailable = false;
             }
-            console.log(calcHistory);
             calcHistory = document.getElementById('text').value;
             document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
         }
-    } else {
+    }
+    if (previousResult == undefined) {
         alert("Connection lost with the python engine. Please restart the program. This may be because you entered a huge operation.");
     }
 }
@@ -233,6 +306,11 @@ function bracket(b) {
 }
 
 function dot() {
+    if (needClear === true) {
+        document.getElementById('text').value = document.getElementById('text').value + "\n\n";
+        currentOperation = '';
+        needClear = false;
+    }
     document.getElementById("text").scrollTop = document.getElementById("text").scrollHeight;
     if (dotAvailable === true) {
         document.getElementById('text').value = document.getElementById('text').value + '.';
@@ -242,7 +320,15 @@ function dot() {
 }
 
 function clearAll() {
-    location.reload();
+    document.getElementById('text').value = '';
+    canWrite = true;
+    operationAvailable = false;
+    dotAvailable = true;
+    bracketsToClose = 0;
+    needClear = false;
+    previousResult = 0;
+    calcHistory = '';
+    currentOperation = '';
 }
 
 function del() {
@@ -306,4 +392,7 @@ function clearOperation() {
     dotAvailable = true
     operationAvailable = false
     bracketsToClose = 0
+    needClear = false;
+    previousResult = 0;
+    
 }

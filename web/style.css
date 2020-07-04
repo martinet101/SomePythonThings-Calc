@@ -1,8 +1,13 @@
 * {
     font-size:20px;
     margin: 0px;
-    color: #333333;
+    color: #DDDDDD;
     font-family: 'Roboto Mono', monospace;
+    background-color: #222222
+}
+
+:disabled {
+    cursor: not-allowed;
 }
 
 button {
@@ -11,24 +16,25 @@ button {
     transition: 0.1s;
     outline:none;
 }
+
 button:hover {
-    background-color: #EEEEEE
+    background-color: #121212
 }
 
 .grey {
-    background-color: #AAAAAA
+    background-color: #333333
 }
 
 .dark-grey {
-    background-color: #7C8C9C
+    background-color: #49525C
 }
 
 .light-grey {
-    background-color: #DDDDDD
+    background-color: #202020
 }
 
 .turquoise {
-    background-color: turquoise
+    background-color: #00BFB2
 }
 
 .big {
@@ -44,24 +50,29 @@ button:hover {
     width: 100%;
     height: 28.571428571428573%;
     resize: none;
-    background-color: #FFFFFF
+    background-color: #222222
 }
+
+.text:disabled {
+    cursor: default;
+}
+
 
 ::-webkit-scrollbar {
     width: 16px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #FFFFFF;
+    background: #222222;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #DDDDDD;
+    background: #333333;
     transition: 0.3;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #CCCCCC;
+    background: #444444;
 }
 
 body {

@@ -1,7 +1,7 @@
 import eel
 @eel.expose
 def checkUpdates_py():
-    actualVersion = 2.4
+    actualVersion = 3.0
     if True:
         import struct
         import urllib.request
@@ -32,27 +32,35 @@ def python_alive():
 
 def server_process():
     print('Starting Eel')
-    eel.start('index.html',mode=None, size=(900, 500), port=4567,  block=False)
+    eel.start('index.html',mode=None, size=(900, 500), port=6938,  block=False)
     while True:
         print("Eel Server Running")
         eel.sleep(1.0)   
 
-import eel
-eel.init('web')
+try:
+    import eel
+    eel.init('web')
 
-if __name__ == '__main__':
-    
-    from cefpython3 import cefpython as cef
-    from multiprocessing import Process
-    import sys
-    p = Process(target=server_process)
-    p.start()
-    sys.excepthook = cef.ExceptHook
-    cef.Initialize()
-    cef.CreateBrowserSync(url="localhost:4567/index.html")
-    cef.MessageLoop()
-    cef.Shutdown()
-
-
-
+    if __name__ == '__main__':
+        from cefpython3 import cefpython as cef
+        from multiprocessing import Process
+        import sys
+        p = Process(target=server_process)
+        p.start()
+        sys.excepthook = cef.ExceptHook
+        cef.Initialize()
+        print("Starting window at localhost:6938/index.html")
+        try:
+            cef.CreateBrowserSync(url="localhost:6938/index.html",
+                              window_title="SomePythonThings Calc")
+        except:
+            cef.CreateBrowserSync(url="localhost:6938/index.html")
+        cef.MessageLoop()
+        cef.Shutdown()
+        eel.sleep(1)
+        print("Server closed. 2 seconds to destroy program")
+        eel.sleep(2)
+except:
+    from tkinter.messagebox import showerror
+    showerror(title='SomePythonThings Calc', message='An error has occurred while running SomePythonThings Calc. Try to run the program later. If the error persists, please report it at https://github.com/martinet101/SomePythonThings-Calc/issues')
 
