@@ -1,4 +1,4 @@
 rmdir /Q /S build
 rmdir /Q /S dist
-python -m eel "SomePythonThings Calc.py" web --icon icon.ico --noconsole
+python -m eel "SomePythonThings Calc.py" web --icon icon.ico --noconsole --add-data icon.png;.
 pause
