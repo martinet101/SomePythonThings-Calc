@@ -1,0 +1,7 @@
+Window: 900*600 (100% x 100%)
+
+text label: 900*180 (100% x 30%)
+
+big buttons: 225*84 (25% x 14%)
+
+small buttons: 150*84 (16.66% x 14%)
