@@ -1,12 +1,14 @@
-true = True
-false = False
+
 
 def scrollBottom():
-    print('scroll')
+    global textbox
+    textbox.moveCursor(QtGui.QTextCursor.End)
+
 
 def appendText(t):
     global textbox
     textbox.setPlainText(str(textbox.toPlainText())+str(t))
+    scrollBottom()
 
 canWrite = True
 operationAvailable = False
@@ -18,76 +20,254 @@ calcHistory = ''
 currentOperation = ''
 
 def print_number(n):
-    global textbox, needClear, currentOperation, operationAvailable
-    if needClear:
-        appendText('\n\n')
-        needClear = False
-        currentOperation = ''
-    appendText(n)
+    n = str(n)
+    global textbox, needClear, currentOperation, operationAvailable, canWrite
+    if canWrite:
+        if needClear:
+            appendText('\n\n')
+            needClear = False
+            currentOperation = ''
+        appendText(n)
+        scrollBottom()
+        currentOperation += n
+        operationAvailable=True
     scrollBottom()
-    currentOperation += n
-    operationAvailable=True
     
 
 
 
 def print_operation(o):
-    global previousResult, currentOperation, needClear, dotAvailable, bracketsToClose, operationAvailable
-    scrollBottom()
-    if needClear:
-        appendText("\n\n" + str(previousResult))
-        currentOperation = previousResult
-        needClear = False
-    if o in '^(*/':
-        if operationAvailable:
+    global previousResult, currentOperation, needClear, dotAvailable, bracketsToClose, operationAvailable, canWrite
+    if canWrite:
+        scrollBottom()
+        if needClear:
+            appendText("\n\n" + str(previousResult))
+            currentOperation = previousResult
+            needClear = False
+        if o in '^(*/':
+            if operationAvailable:
+                appendText(' '+o+' ')
+                currentOperation += ' '+o+' '
+        else:
             appendText(' '+o+' ')
             currentOperation += ' '+o+' '
-    else:
-        appendText(' '+o+' ')
-        currentOperation += ' '+o+' '
-    operationAvailable = False
-    dotAvailable = False
-    if o == '^(':
-        bracketsToClose += 1
+        operationAvailable = False
+        dotAvailable = True
+        if o == '^(':
+            bracketsToClose += 1
+    scrollBottom()
 
 
 
 def print_bracket(b):
-    print(b)
-
-
+    global operationAvailable, bracketsToClose, currentOperation, needClear, canWrite, dotAvailable
+    if canWrite:    
+        operationAvailable = False
+        if b == ')':
+            if bracketsToClose > 0:
+                appendText(' '+b)
+                currentOperation += ' ' + b
+                bracketsToClose -= 1
+                dotAvailable = True
+                operationAvailable = True
+        else: 
+            if needClear:
+                appendText('\n\n')
+                currentOperation = ''
+                needClear = False
+            bracketsToClose += 1
+            currentOperation += b+' '
+            appendText(b+' ')
+            dotAvailable = True
+    scrollBottom()
+        
 
 def dot():
-    print('.')
+    global needClear, dotAvailable, currentOperation, canWrite
+    if canWrite:    
+        if needClear:
+            appendText('\n\n')
+            currentOperation = ''
+            needClear = False
+        if dotAvailable:
+            appendText('.')
+            dotAvailable = False
+            currentOperation += '.'
+    scrollBottom()
 
 
 
 def calculate():
-    print('=')
+    global currentOperation, needClear, previousResult, dotAvailable, bracketsToClose, calcHistory, textbox
+    disableAll()
+    try:
+        while str(currentOperation[0:1]) == '0':
+            currentOperation = str(currentOperation)[1:]
+        result = eval(str(currentOperation).replace('^', '**'))
+        needClear = True
+        previousResult = str(result)
+        dotAvailable = True
+    except:
+        result = "Oh \ud83d\udca9, You did it! The operation is too hard to be calculated!"
+        needClear = True
+        dotAvailable = False
+        operationAvailable = False
+        bracketsToClose = 0
+    calcHistory =  textbox.toPlainText()
+    appendText('\n = '+str(result))
+    scrollBottom()
+    enableAll()
 
 
 
-def delete():
-    print('del')
+def disableAll():
+    global canWrite
+    canWrite = False
 
-
+def enableAll():
+    global canWrite
+    canWrite = True
 
 def clear():
-    print('clear')
+    global textbox, canWrite, operationAvailable, dotAvailable, bracketsToClose, needClear, previousResult, calcHistory, currentOperation
+    if calcHistory == '':
+        textbox.setPlainText('')
+    else:
+        textbox.setPlainText(calcHistory + "\n\n")
+    currentOperation = ''
+    dotAvailable = True
+    operationAvailable = False
+    bracketsToClose = 0
+    needClear = False
+    previousResult = 0
+    scrollBottom()
 
 
 
 def clear_all():
-    print('clear_all')
+    global textbox, canWrite, operationAvailable, dotAvailable, bracketsToClose, needClear, previousResult, calcHistory, currentOperation
+    textbox.setPlainText('')
+    canWrite = True
+    operationAvailable = False
+    dotAvailable = True
+    bracketsToClose = 0
+    needClear = False
+    previousResult = 0
+    calcHistory = ''
+    currentOperation = ''
+    scrollBottom()
+
+    
+
+
+
+def delete():
+    global textbox, currentOperation
+    scrollBottom()
+    text = textbox.toPlainText()
+    char = text[-1:]
+    checkChar(char)
+    if char == ' ':
+        textbox.setPlainText(text[:-1])
+        currentOperation = currentOperation[:-1]
+        delAfterSpace()
+    else:
+        textbox.setPlainText(text[:-1])
+        currentOperation = currentOperation[:-1]
+    scrollBottom()
+
+
+def delAfterSpace():
+    global textbox, currentOperation
+    scrollBottom()
+    text = textbox.toPlainText()
+    char = text[-1:]
+    checkChar(char)
+    if char == ' ':
+        textbox.setPlainText(text[:-1])
+        currentOperation = currentOperation[:-1]
+        delAfterSpace()
+    else:
+        textbox.setPlainText(text[:-1])
+        currentOperation = currentOperation[:-1]
+        delOnlyIfSpace()
+    scrollBottom()
+
+def delOnlyIfSpace():
+    global textbox, currentOperation
+    scrollBottom()
+    text = textbox.toPlainText()
+    char = text[-1:]
+    checkChar(char)
+    if char == ' ':
+        textbox.setPlainText(text[:-1])
+        currentOperation = currentOperation[:-1]
+        delOnlyIfSpace()
+    scrollBottom()
+
+def checkChar(c):
+    global dotAvailable, bracketsToClose, operationAvailable
+    if c == '.':
+        dotAvailable = True
+    elif c == '(':
+        bracketsToClose -= 1
+    elif c == ')':
+        bracketsToClose += 1
+    elif c in '*/^':
+        operationAvailable = True
 
 
 
 
 
-
-
-
-
+def on_key(key):
+    # test for a specific key
+    if key == QtCore.Qt.Key_Return:
+        calculate()
+    elif key == QtCore.Qt.Key_Enter:
+        calculate()
+    elif key == QtCore.Qt.Key_0:
+        print_number(0)
+    elif key == QtCore.Qt.Key_1:
+        print_number(1)
+    elif key == QtCore.Qt.Key_2:
+        print_number(2)
+    elif key == QtCore.Qt.Key_3:
+        print_number(3)
+    elif key == QtCore.Qt.Key_4:
+        print_number(4)
+    elif key == QtCore.Qt.Key_5:
+        print_number(5)
+    elif key == QtCore.Qt.Key_6:
+        print_number(6)
+    elif key == QtCore.Qt.Key_7:
+        print_number(7)
+    elif key == QtCore.Qt.Key_8:
+        print_number(8)
+    elif key == QtCore.Qt.Key_9:
+        print_number(9)
+    elif key == QtCore.Qt.Key_Asterisk:
+        print_operation('*')
+    elif key == QtCore.Qt.Key_Slash:
+        print_operation('/')
+    elif key == 00:
+        print_operation('^(')
+    elif key == QtCore.Qt.Key_Plus:
+        print_operation('+')
+    elif key == QtCore.Qt.Key_Minus:
+        print_operation('-')
+    elif key == QtCore.Qt.Key_ParenLeft:
+        print_bracket('(')
+    elif key == QtCore.Qt.Key_ParenRight:
+        print_bracket(')')
+    elif key == QtCore.Qt.Key_Equal:
+        calculate()
+    elif key == QtCore.Qt.Key_Backspace:
+        delete()
+    elif key == QtCore.Qt.Key_Comma:
+        dot()
+    elif key == 46:
+        dot()
 
 
 
@@ -198,6 +378,7 @@ class Ui_MainWindow(object):
 
 class Window(QtWidgets.QMainWindow):
     resized = QtCore.pyqtSignal()
+    keyRelease = QtCore.pyqtSignal(int)
     def  __init__(self, parent=None):
         super(Window, self).__init__(parent=parent)
         ui = Ui_MainWindow()
@@ -208,8 +389,10 @@ class Window(QtWidgets.QMainWindow):
         self.resized.emit()
         return super(Window, self).resizeEvent(event)
 
-    def someFunction(self):
-        print("someFunction")
+    def keyReleaseEvent(self, event):
+        super(Window, self).keyReleaseEvent(event)
+        self.keyRelease.emit(event.key())
+
 
 import sys
 from functools import partial
@@ -258,9 +441,11 @@ buttons['CA'] = QtWidgets.QPushButton(calc) # Clear All (CA)
 buttons['CA'].setText('Clear all')
 buttons['CA'].move(0, 0)
 buttons['CA'].clicked.connect(clear_all)
+buttons['^('].setText('^')
 textbox =  QtWidgets.QPlainTextEdit(calc)
 textbox.move(0, 0)
 textbox.setReadOnly(True)
 resizeWidgets()
+calc.keyRelease.connect(on_key)
 calc.show()
 sys.exit(app.exec_())
