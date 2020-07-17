@@ -1,1 +1,4 @@
-python -m eel "SomePythonThings Calc.py" web --icon icon.ico --noconsole --onefile
+python -m PyInstaller "SomePythonThings Calc.py" --icon icon.ico --noconsole --onefile
+
+
+

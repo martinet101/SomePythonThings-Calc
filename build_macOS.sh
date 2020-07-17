@@ -1,4 +1,5 @@
 #!/bin/bash
-cd pwd
-python3.7 -m eel "SomePythonThings Calc.py" web --onefile --exclude-module tkinter --windowed
+python3.7 -m PyInstaller "SomePythonThings Calc.py" --icon icon.ico --noconsole --onefile
 zsh
+
+
