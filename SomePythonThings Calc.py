@@ -265,6 +265,8 @@ def on_key(key):
         print_operation('/')
     elif key == 94:
         print_operation('^(')
+    elif key == 33554431:
+        print_operation('^(')
     elif key == QtCore.Qt.Key_Plus:
         print_operation('+')
     elif key == QtCore.Qt.Key_Minus:
@@ -282,7 +284,7 @@ def on_key(key):
     elif key == 46:
         dot()
     #else:
-    #    print('key pressed: %i' % key)
+    #   print('key pressed: %i' % key)
 def resizeWidgets():
     global buttons
     global textbox
@@ -352,13 +354,13 @@ def resizeWidgets():
     buttons['CA'].move(small_6th_column, first_row)
     buttons['CA'].resize(small_width, height) #Resize button
     for button in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '(', ')', '^(']:
-        buttons[button].setStyleSheet('QPushButton { border: none; background-color: #333333; color: white;font-size:20px; color: #DDDDDD; font-family: "Consolas", monospace; width: 25%}  QPushButton::hover {background-color: #111111;}')# Set Style
+        buttons[button].setStyleSheet('QPushButton { border: none; background-color: #333333; color: white;font-size:20px; color: #DDDDDD; font-family: "Courier New", monospace;font-weight: bold;  width: 25%}  QPushButton::hover {background-color: #111111;}')# Set Style
     for button in ['.', '+', '-', '*', '/']:
-        buttons[button].setStyleSheet('QPushButton { border: none; background-color: #49525C; color: white;font-size:20px; color: #DDDDDD; font-family: "Consolas", monospace;}  QPushButton::hover {background-color: #111111;}')# Set Style
+        buttons[button].setStyleSheet('QPushButton { border: none; background-color: #49525C; color: white;font-size:20px; color: #DDDDDD; font-family: "Courier New", monospace;font-weight: bold; }  QPushButton::hover {background-color: #111111;}')# Set Style
     for button in ['Del', 'CO', 'CA']:
-        buttons[button].setStyleSheet('QPushButton { border: none; background-color: #202020; color: white;font-size:20px; color: #DDDDDD; font-family: "Consolas", monospace;}  QPushButton::hover {background-color: #111111;}')# Set Style
-    buttons['='].setStyleSheet('QPushButton { border: none; background-color: #00BFB2; color: white;font-size:20px; color: #DDDDDD; font-family: "Consolas", monospace;}  QPushButton::hover {background-color: #111111;}')# Set Style
-    textbox.setStyleSheet('border:none; background-color: #222222; color:white;font-size:20px; color: #DDDDDD; font-family: "Consolas", monospace; ')
+        buttons[button].setStyleSheet('QPushButton { border: none; background-color: #202020; color: white;font-size:20px; color: #DDDDDD; font-family: "Courier New", monospace;font-weight: bold; }  QPushButton::hover {background-color: #111111;}')# Set Style
+    buttons['='].setStyleSheet('QPushButton { border: none; background-color: #00BFB2; color: white;font-size:20px; color: #DDDDDD; font-family: "Courier New", monospace;font-weight: bold; }  QPushButton::hover {background-color: #111111;}')# Set Style
+    textbox.setStyleSheet('border:none; background-color: #222222; color:white;font-size:20px; color: #DDDDDD; font-family: "Courier New", monospace;font-weight: bold;  ')
 from PyQt5 import QtWidgets, QtGui, QtCore
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -388,15 +390,17 @@ class Window(QtWidgets.QMainWindow):
 import sys
 from functools import partial
 resized = QtCore.pyqtSignal()
+QtWidgets.QApplication.setStyle('Fusion')
 app = QtWidgets.QApplication(sys.argv)
+QtWidgets.QApplication.setStyle('Fusion')
 calc = Window()
 calc.setGeometry(0, 0, 900, 500)
 calc.setWindowTitle('SomePythonThings Calc')
 calc.setStyleSheet('''
     background-color: #333333;
     color:#EEEEEE; 
-    font-family: "Consolas", 
-    monospace;
+    font-family: "Courier New";
+    font-weight: bold; 
     font-size:15px;
 ''')
 try:
