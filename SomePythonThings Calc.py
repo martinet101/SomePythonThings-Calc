@@ -1,11 +1,9 @@
-
 def checkUpdates():
     global calc
     actualVersion = 3.1
     if True:
-        import struct
-        import urllib.request
-        response = urllib.request.urlopen("http://www.somepythonthings.tk/versions/calc.ver")
+        from urllib.request import urlopen
+        response = urlopen("http://www.somepythonthings.tk/versions/calc.ver")
         response = response.read().decode("utf8")
         if float(response.split('///')[0])>actualVersion:
             from PyQt5.QtWidgets import QMessageBox
@@ -354,13 +352,13 @@ def resizeWidgets():
     buttons['CA'].move(small_6th_column, first_row)
     buttons['CA'].resize(small_width, height) #Resize button
     for button in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '(', ')', '^(']:
-        buttons[button].setStyleSheet('QPushButton { border: none; background-color: #333333; color: white;font-size:20px; color: #DDDDDD; font-family: "Courier New", monospace;font-weight: bold;  width: 25%}  QPushButton::hover {background-color: #111111;}')# Set Style
+        buttons[button].setStyleSheet('QPushButton { border: none; background-color: #333333; font-size:20px; color: #DDDDDD; font-family: "'+font+'", monospace;font-weight: bold;  width: 25%}  QPushButton::hover {background-color: #111111;}')# Set Style
     for button in ['.', '+', '-', '*', '/']:
-        buttons[button].setStyleSheet('QPushButton { border: none; background-color: #49525C; color: white;font-size:20px; color: #DDDDDD; font-family: "Courier New", monospace;font-weight: bold; }  QPushButton::hover {background-color: #111111;}')# Set Style
+        buttons[button].setStyleSheet('QPushButton { border: none; background-color: #49525C; font-size:20px; color: #DDDDDD; font-family: "'+font+'", monospace;font-weight: bold; }  QPushButton::hover {background-color: #111111;}')# Set Style
     for button in ['Del', 'CO', 'CA']:
-        buttons[button].setStyleSheet('QPushButton { border: none; background-color: #202020; color: white;font-size:20px; color: #DDDDDD; font-family: "Courier New", monospace;font-weight: bold; }  QPushButton::hover {background-color: #111111;}')# Set Style
-    buttons['='].setStyleSheet('QPushButton { border: none; background-color: #00BFB2; color: white;font-size:20px; color: #DDDDDD; font-family: "Courier New", monospace;font-weight: bold; }  QPushButton::hover {background-color: #111111;}')# Set Style
-    textbox.setStyleSheet('border:none; background-color: #222222; color:white;font-size:20px; color: #DDDDDD; font-family: "Courier New", monospace;font-weight: bold;  ')
+        buttons[button].setStyleSheet('QPushButton { border: none; background-color: #202020; font-size:20px; color: #DDDDDD; font-family: "'+font+'", monospace;font-weight: bold; }  QPushButton::hover {background-color: #111111;}')# Set Style
+    buttons['='].setStyleSheet('QPushButton { border: none; background-color: #00BFB2; font-size:20px; color: #DDDDDD; font-family: "'+font+'", monospace;font-weight: bold; }  QPushButton::hover {background-color: #111111;}')# Set Style
+    textbox.setStyleSheet('border:none; background-color: #222222; font-size:20px; color: #DDDDDD; font-family: "'+font+'", monospace;font-weight: bold;  ')
 from PyQt5 import QtWidgets, QtGui, QtCore
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -387,11 +385,20 @@ class Window(QtWidgets.QMainWindow):
     def keyReleaseEvent(self, event):
         super(Window, self).keyReleaseEvent(event)
         self.keyRelease.emit(event.key())
-import sys
+from sys import argv, exit
 from functools import partial
+from sys import platform as _platform
+if _platform == "linux" or _platform == "linux2":
+    font = "Ubuntu Mono"
+elif _platform == "darwin":
+    font = "Courier New"
+elif _platform == "win32":
+    font = "Consolas"
+elif _platform == "win64":
+    font = "Consolas"
 resized = QtCore.pyqtSignal()
 QtWidgets.QApplication.setStyle('Fusion')
-app = QtWidgets.QApplication(sys.argv)
+app = QtWidgets.QApplication(argv)
 QtWidgets.QApplication.setStyle('Fusion')
 calc = Window()
 calc.setGeometry(0, 0, 900, 500)
@@ -399,7 +406,7 @@ calc.setWindowTitle('SomePythonThings Calc')
 calc.setStyleSheet('''
     background-color: #333333;
     color:#EEEEEE; 
-    font-family: "Courier New";
+    font-family: "'''+font+'''";
     font-weight: bold; 
     font-size:15px;
 ''')
@@ -449,4 +456,4 @@ resizeWidgets()
 calc.keyRelease.connect(on_key)
 checkUpdates()
 calc.show()
-sys.exit(app.exec_())
+exit(app.exec_())
