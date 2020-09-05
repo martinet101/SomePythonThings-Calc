@@ -1,6 +1,3 @@
 #!/bin/bash
-python3.7 -m eel "SomePythonThings Calc.py" web --onefile --exclude-module tkinter --windowed  --hidden-import="pkg_resources.py2_warn" --icon="macOSicon.icns" --hidden-import="PyQtWebEngine"
-zsh
-
-
-
+rmdir -rf build dist
+python3.7 -m PyInstaller "SomePythonThings Calc.py" --onefile --exclude-module tkinter --windowed  --icon "./macOSicon.icns" --add-data "./icon.png":"./"
