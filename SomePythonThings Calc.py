@@ -1,14 +1,14 @@
 def checkUpdates():
-    global calc
-    actualVersion = 3.2
+    global x_char, y_char, e_char, pi_char,  calc
+    actualVersion = 3.3
     try:
         from urllib.request import urlopen
         response = urlopen("http://www.somepythonthings.tk/versions/calc.ver")
         response = response.read().decode("utf8")
         if float(response.split('///')[0])>actualVersion:
-            from PyQt5.QtWidgets import QMessageBox
-            buttonReply = QMessageBox.question(calc, 'SomePythonThings Calc Updater', "An update for SomePythonThings Calc has been released:\nYour version: "+str(actualVersion)+"\nNew version: "+str(response.split('///')[0])+"\nUpdate Info:\n"+str(response.split('///')[1])+"\n\nDo you want to go to the web and download it?", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-            if buttonReply == QMessageBox.Yes:
+            from PyQt5 import QtWidgets
+            buttonReply = QtWidgets.QMessageBox.question(calc, 'SomePythonThings Calc Updater', "An update for SomePythonThings Calc has been released:\nYour version: "+str(actualVersion)+"\nNew version: "+str(response.split('///')[0])+"\nUpdate Info:\n"+str(response.split('///')[1])+"\n\nDo you want to go to the web and download it?", QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.Yes)
+            if buttonReply == QtWidgets.QMessageBox.Yes:
                 import webbrowser
                 webbrowser.open_new('https://www.somepythonthings.tk/programs/somepythonthings-calc/')
         else:
@@ -16,10 +16,10 @@ def checkUpdates():
     except:
         return False
 def scrollBottom():
-    global textbox
+    global x_char, y_char, e_char, pi_char,  textbox
     textbox.moveCursor(QtGui.QTextCursor.End)
 def appendText(t):
-    global textbox
+    global x_char, y_char, e_char, pi_char,  textbox
     textbox.setPlainText(str(textbox.toPlainText())+str(t))
     scrollBottom()
 canWrite = True
@@ -33,12 +33,15 @@ previousResult = ''
 calcHistory = ''
 currentOperation = ''
 result = 0
+reWriteOperation = False
+x_prev_value = 0
+y_prev_value = 0
 def print_symbol_and_close(s):
     print_symbol(s)
     show_popup()
 def print_symbol(s):
     s = str(s)
-    global textbox, needClear, currentOperation, operationAvailable, canWrite, symbolAvailable, numberAvailable, dotAvailable
+    global x_char, y_char, e_char, pi_char,  textbox, needClear, currentOperation, operationAvailable, canWrite, symbolAvailable, numberAvailable, dotAvailable
     if canWrite and symbolAvailable:
         if needClear:
             appendText('\n\n')
@@ -54,7 +57,7 @@ def print_symbol(s):
     scrollBottom()
 def print_number(n):
     n = str(n)
-    global textbox, needClear, currentOperation, operationAvailable, canWrite, numberAvailable, symbolAvailable
+    global x_char, y_char, e_char, pi_char,  textbox, needClear, currentOperation, operationAvailable, canWrite, numberAvailable, symbolAvailable
     if canWrite and numberAvailable:
         if needClear:
             appendText('\n\n')
@@ -68,7 +71,7 @@ def print_number(n):
         operationAvailable=True
     scrollBottom()
 def print_operation(o):
-    global previousResult, currentOperation, needClear, dotAvailable, bracketsToClose, operationAvailable, canWrite, symbolAvailable, numberAvailable
+    global x_char, y_char, e_char, pi_char,  previousResult, currentOperation, needClear, dotAvailable, bracketsToClose, operationAvailable, canWrite, symbolAvailable, numberAvailable
     if canWrite:
         scrollBottom()
         if needClear:
@@ -90,7 +93,7 @@ def print_operation(o):
             bracketsToClose += 1
     scrollBottom()
 def print_bracket(b):
-    global operationAvailable, bracketsToClose, currentOperation, needClear, canWrite, dotAvailable, numberAvailable, symbolAvailable
+    global x_char, y_char, e_char, pi_char,  operationAvailable, bracketsToClose, currentOperation, needClear, canWrite, dotAvailable, numberAvailable, symbolAvailable
     if canWrite:
         operationAvailable = False
         if b == ')':
@@ -115,7 +118,7 @@ def print_bracket(b):
             numberAvailable = True
     scrollBottom()
 def dot():
-    global needClear, dotAvailable, currentOperation, canWrite, numberAvailable, symbolAvailable
+    global x_char, y_char, e_char, pi_char,  needClear, dotAvailable, currentOperation, canWrite, numberAvailable, symbolAvailable
     if canWrite:
         symbolAvailable = False
         numberAvailable = True  
@@ -128,8 +131,44 @@ def dot():
             dotAvailable = False
             currentOperation += '.'
     scrollBottom()
+def huge_calculate(currentOperation):
+    global x_char, y_char, e_char, pi_char,  textbox,calc, operationAvailable, reWriteOperation,needClear, previousResult, dotAvailable, bracketsToClose, calcHistory, textbox, result, calc, numberAvailable, symbolAvailable
+    from time import sleep as wait
+    from qt_thread_updater import get_updater
+    result = pure_calculate(currentOperation)
+    reWriteOperation = False
+    from time import sleep as wait
+    from qt_thread_updater import get_updater
+    if  not "  " in str(result):
+        needClear = True
+        previousResult = str(result)
+        dotAvailable = True
+        symbolAvailable = True
+        numberAvailable = True
+    else:
+        if not "Syntax" in str(result):
+            needClear = True
+            dotAvailable = False
+            operationAvailable = False
+            bracketsToClose = 0
+            symbolAvailable = True
+            numberAvailable = True
+        else:
+            reWriteOperation = True
+    calcHistory =  textbox.toPlainText()
+    try:
+        result = int(result)
+        #appendText('\n = '+f"{result:,}")
+        get_updater().call_latest(textbox.appendPlainText, ' = '+f"{result:,}")
+    except:
+        #appendText('\n = '+result)
+        get_updater().call_latest(textbox.appendPlainText, ' = '+result)
+    get_updater().call_latest(textbox.moveCursor, QtGui.QTextCursor.End)
+    enableAll()
+
+
+
 def pure_calculate(s):
-    global result
     try:
         result = str(eval(str(s)))
     except OverflowError:
@@ -138,102 +177,40 @@ def pure_calculate(s):
         result = "Syntax Error\u2639 Please check your operation and try again!  "
     except:
         result = "Oh \ud83d\udca9, You did it! The operation is too hard to be calculated!  "
+    return result
 def calculate():
-    global calc, currentOperation, needClear, previousResult, dotAvailable, bracketsToClose, calcHistory, textbox, result, calc, numberAvailable, symbolAvailable
+    global x_prev_value, y_prev_value, x_char, y_char, e_char, pi_char,  calc, currentOperation, operationAvailable, needClear, previousResult, dotAvailable, bracketsToClose, calcHistory, textbox, result, calc, numberAvailable, symbolAvailable
     if(not needClear):
         disableAll()
         calc.setWindowTitle('SomePythonThings Calc:  '+currentOperation)
-        operation = currentOperation
         while str(currentOperation[0:1]) == '0':
             currentOperation = str(currentOperation)[1:]
-        if("\ud835\udf0b" in currentOperation):
-            currentOperation = currentOperation.replace(u"\ud835\udf0b", "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679")
-        if("\ud835\udc52" in currentOperation):
-            currentOperation = currentOperation.replace(u"\ud835\udc52", "2.7182818284590452353602874713526624977572470936999595749669676277240766303535475945713821785251664274")
-        if("\ud835\udc65" in currentOperation):
-            x = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an \ud835\udc65 on the operation.\nEnter value for \ud835\udc65: ", QtWidgets.QLineEdit.Normal, "0")
-            currentOperation = currentOperation.replace(u"\ud835\udc65", x[0].replace(",", "."))
-        if("\ud835\udc66" in currentOperation):
-            y = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an \ud835\udc66 on the operation.\nEnter value for \ud835\udc66: ", QtWidgets.QLineEdit.Normal, "0")
-            currentOperation = currentOperation.replace(u"\ud835\udc66", y[0].replace(",", "."))
+        if(pi_char in currentOperation):
+            currentOperation = currentOperation.replace(pi_char, "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679")
+        if(e_char in currentOperation):
+            currentOperation = currentOperation.replace(e_char, "2.7182818284590452353602874713526624977572470936999595749669676277240766303535475945713821785251664274")
+        if(x_char in currentOperation):
+            x = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+x_char+" on the operation.\nEnter value for "+x_char+": ", QtWidgets.QLineEdit.Normal, str(x_prev_value))
+            x_prev_value = int(x[0].replace(",", "."))
+            currentOperation = currentOperation.replace(x_char, x[0].replace(",", "."))
+        if(y_char in currentOperation):
+            y = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+y_char+" on the operation.\nEnter value for "+y_char+": ", QtWidgets.QLineEdit.Normal, str(y_prev_value))
+            y_prev_value = int(y[0].replace(",", "."))
+            currentOperation = currentOperation.replace(y_char, y[0].replace(",", "."))
         from threading import Thread
         from time import sleep as wait
-        t = Thread(target=pure_calculate, args=(currentOperation.replace('^', '**'),))
-        t.setDaemon(True)
+        t = Thread(target=huge_calculate, args=(currentOperation.replace('^', '**'),))
+        t.daemon = (True)
         t.start()
-        reWriteOperation = False
-        wait(0.05)
-        if t.isAlive():
-            from PyQt5.QtWidgets import QMessageBox
-            minifiedOperation = currentOperation
-            if(len(currentOperation)>40):
-                minifiedOperation = currentOperation[0:40]+"..."
-            buttonReply = QMessageBox.question(calc, 'SomePythonThings Calc', "It seems that you entered a huuuuuge operation ("+minifiedOperation+") and the program may hang up during a few seconds or become unresponsive. Do you want to proceed anyway with the calculation?\n", QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-            if buttonReply == QMessageBox.Cancel:
-                t.killed = True
-            else:
-                while t.isAlive():
-                    wait(0.1)
-                t.join()
-                if  not "  " in str(result):
-                    needClear = True
-                    previousResult = str(result)
-                    dotAvailable = True
-                    symbolAvailable = True
-                    numberAvailable = True
-                else:
-                    if not "Syntax" in str(result):
-                        needClear = True
-                        dotAvailable = False
-                        operationAvailable = False
-                        bracketsToClose = 0
-                        symbolAvailable = True
-                        numberAvailable = True
-                    else:
-                        reWriteOperation = True
-                calcHistory =  textbox.toPlainText()
-                try:
-                    result = int(result)
-                    appendText('\n = '+f"{result:,}")
-                except:
-                    appendText('\n = '+result)
-                scrollBottom()
-                enableAll()
-        else:
-            if  not "  " in str(result):
-                needClear = True
-                previousResult = str(result)
-                dotAvailable = True
-                symbolAvailable = True
-                numberAvailable = True
-            else:
-                if not "Syntax" in str(result):
-                    needClear = True
-                    dotAvailable = False
-                    operationAvailable = False
-                    bracketsToClose = 0
-                    symbolAvailable = True
-                    numberAvailable = True
-                else:
-                    reWriteOperation = True
-            calcHistory =  textbox.toPlainText()
-            try:
-                result = int(result)
-                appendText('\n = '+f"{result:,}")
-            except:
-                appendText('\n = '+result)
-            if(reWriteOperation):
-                appendText("\n\n"+currentOperation)
-            scrollBottom()
-            enableAll()
+        
 def disableAll():
-    global canWrite
+    global x_char, y_char, e_char, pi_char,  canWrite
     canWrite = False
 def enableAll():
-    global canWrite
+    global x_char, y_char, e_char, pi_char,  canWrite
     canWrite = True
 def clear():
-    global textbox, canWrite, operationAvailable, dotAvailable, bracketsToClose, needClear, previousResult, calcHistory, currentOperation
+    global x_char, y_char, e_char, pi_char,  textbox, canWrite, operationAvailable, symbolAvailable,numberAvailable,dotAvailable, bracketsToClose, needClear, previousResult, calcHistory, currentOperation
     if calcHistory == '':
         textbox.setPlainText('')
     else:
@@ -248,7 +225,7 @@ def clear():
     previousResult = ''
     scrollBottom()
 def clear_all():
-    global textbox, canWrite, operationAvailable, dotAvailable, bracketsToClose, needClear, previousResult, calcHistory, currentOperation, symbolAvailable, numberavailable
+    global x_char, y_char, e_char, pi_char,  textbox, canWrite, operationAvailable, dotAvailable, bracketsToClose, needClear, previousResult, calcHistory, currentOperation, symbolAvailable, numberAvailable
     textbox.setPlainText('')
     canWrite = True
     operationAvailable = False
@@ -262,7 +239,7 @@ def clear_all():
     currentOperation = ''
     scrollBottom()
 def delete():
-    global textbox, currentOperation
+    global x_char, y_char, e_char, pi_char,  textbox, currentOperation
     scrollBottom()
     text = textbox.toPlainText()
     char = text[-1:]
@@ -276,7 +253,7 @@ def delete():
         currentOperation = currentOperation[:-1]
     scrollBottom()
 def delAfterSpace():
-    global textbox, currentOperation
+    global x_char, y_char, e_char, pi_char,  textbox, currentOperation
     scrollBottom()
     text = textbox.toPlainText()
     char = text[-1:]
@@ -291,7 +268,7 @@ def delAfterSpace():
         delOnlyIfSpace()
     scrollBottom()
 def delOnlyIfSpace():
-    global textbox, currentOperation
+    global x_char, y_char, e_char, pi_char,  textbox, currentOperation
     scrollBottom()
     text = textbox.toPlainText()
     char = text[-1:]
@@ -302,7 +279,7 @@ def delOnlyIfSpace():
         delOnlyIfSpace()
     scrollBottom()
 def checkChar(c):
-    global dotAvailable, bracketsToClose, operationAvailable, numberAvailable, symbolAvailable
+    global x_char, y_char, e_char, pi_char,  dotAvailable, bracketsToClose, operationAvailable, numberAvailable, symbolAvailable
     if c == '.':
         dotAvailable = True
     elif c == '(':
@@ -311,7 +288,7 @@ def checkChar(c):
         bracketsToClose += 1
     elif c in '*/^':
         operationAvailable = True
-    elif (c.encode('utf8') == '𝜋'.encode("utf8")) or (c.encode("utf8") == '𝑒'.encode('utf8')) or (c.encode("utf8") == '𝑥'.encode("utf8")) or (c.encode("utf8") == '𝑦'.encode("utf8")):
+    elif (str(c) == str(pi_char)) or (str(c) == str(e_char)) or (str(c) == str(x_char)) or (str(c) == str(y_char)):
         numberAvailable = True
         symbolAvailable = True
 def on_key(key):
@@ -343,9 +320,11 @@ def on_key(key):
         print_operation('*')
     elif key == QtCore.Qt.Key_Slash:
         print_operation('/')
-    elif key == 94:
+    elif key == 94:#Windows "^" sign's key code
         print_operation('^(')
-    elif key == 33554431:
+    elif key == 33554431:#macOS "^" sign's key code
+        print_operation('^(')
+    elif key == 16781906:#ubuntu "^" sign's key code
         print_operation('^(')
     elif key == QtCore.Qt.Key_Plus:
         print_operation('+')
@@ -364,18 +343,18 @@ def on_key(key):
     elif key == 46:
         dot()
     elif key == QtCore.Qt.Key_P:# or key == QtCore.Qt.Key_p:
-        print_symbol("\ud835\udf0b")
+        print_symbol(pi_char)
     elif key == QtCore.Qt.Key_E:# or key == QtCore.Qt.Key_e:
-        print_symbol("\ud835\udc52")
+        print_symbol(e_char)
     elif key == QtCore.Qt.Key_X:# or key == QtCore.Qt.Key_x:
-        print_symbol("\ud835\udc65")
+        print_symbol(x_char)
     elif key == QtCore.Qt.Key_Y:# or key == QtCore.Qt.Key_y:
-        print_symbol("\ud835\udc66")
+        print_symbol(y_char)
     #else:
     #   print('key pressed: %i' % key)
     
 def show_popup():
-    global popup, buttons, width
+    global x_char, y_char, e_char, pi_char,  popup, buttons
     if(popup):
         popup=False
         buttons["POPUP"].setText("<  ")
@@ -384,27 +363,26 @@ def show_popup():
         buttons["POPUP"].setText(">  ")
     resizeWidgets()
 def resizeWidgets():
-    global buttons, popup, textbox, calc
-    big_width = 25/100*calc.width()
-    small_width = 17/100*calc.width()
-    height = 14/100*calc.height()+1
-    first_row = 30/100*calc.height()
-    second_row= (30+14)/100*calc.height()
-    third_row= (30+14*2)/100*calc.height()
-    fourth_row= (30+14*3)/100*calc.height()
-    fifth_row= (30+14*4)/100*calc.height()
-    big_1st_column = (25*0)/100*calc.width()
-    big_2nd_column = (25*1)/100*calc.width()
-    big_3rd_column = (25*2)/100*calc.width()
-    big_4th_column = (25*3)/100*calc.width()
-    small_1st_column = (16.6666*0)/100*calc.width()
-    small_2nd_column = (16.6666*1)/100*calc.width()
-    small_3rd_column = (16.6666*2)/100*calc.width()
-    small_4th_column = (16.6666*3)/100*calc.width()
-    small_5th_column = (16.6666*4)/100*calc.width()
-    small_6th_column = (16.6666*5)/100*calc.width()
-    width = 84
-    textbox.resize(calc.width() ,calc.height()/100*30)
+    global x_char, y_char, e_char, pi_char,  buttons, popup, textbox, calc
+    big_width = int(25/100*calc.width())
+    small_width = int(17/100*calc.width())
+    height = int(14/100*calc.height()+1)
+    first_row = int(30/100*calc.height())
+    second_row= int((30+14)/100*calc.height())
+    third_row= int((30+14*2)/100*calc.height())
+    fourth_row= int((30+14*3)/100*calc.height())
+    fifth_row= int((30+14*4)/100*calc.height())
+    big_1st_column = int((25*0)/100*calc.width())
+    big_2nd_column = int((25*1)/100*calc.width())
+    big_3rd_column = int((25*2)/100*calc.width())
+    big_4th_column = int((25*3)/100*calc.width())
+    small_1st_column = int((16.6666*0)/100*calc.width())
+    small_2nd_column = int((16.6666*1)/100*calc.width())
+    small_3rd_column = int((16.6666*2)/100*calc.width())
+    small_4th_column = int((16.6666*3)/100*calc.width())
+    small_5th_column = int((16.6666*4)/100*calc.width())
+    small_6th_column = int((16.6666*5)/100*calc.width())
+    textbox.resize(calc.width() ,int(calc.height()/100*30))
     buttons['0'].move(big_2nd_column, fifth_row)
     buttons['0'].resize(big_width, height) #Resize button
     buttons['1'].move(big_1st_column, fourth_row)
@@ -450,11 +428,11 @@ def resizeWidgets():
     buttons['CA'].move(small_6th_column, first_row)
     buttons['CA'].resize(small_width, height) #Resize button
     if(not popup):
-        buttons['POPUP'].move(calc.width()-25, (calc.height()/2)-25)
-        pX = calc.width()
-        pY = calc.height()/2
-        pWidth = calc.width()/100*20
-        pHeight = height
+        buttons['POPUP'].move(calc.width()-25, int(calc.height()/2)-25)
+        pX = int(calc.width())
+        pY = int(calc.height()/2)
+        pWidth = int(calc.width()/100*20)
+        pHeight = int(height)
         buttons["X"].move(pX, (pY-height*2))
         buttons["X"].resize(pWidth, pHeight)
         buttons["Y"].move(pX, pY-height)
@@ -464,11 +442,11 @@ def resizeWidgets():
         buttons["E"].move(pX, pY+height)
         buttons["E"].resize(pWidth, pHeight)
     else:
-        pX = calc.width()/100*80
-        pY = calc.height()/2
-        pWidth = calc.width()/100*20
+        pX = int(calc.width()/100*80)
+        pY = int(calc.height()/2)
+        pWidth = int(calc.width()/100*20)
         pHeight = height
-        buttons['POPUP'].move(pX-25, (calc.height()/2)-25)
+        buttons['POPUP'].move(pX-25, int(calc.height()/2)-25)
         buttons["X"].move(pX, pY-height*2)
         buttons["X"].resize(pWidth, pHeight+1)
         buttons["Y"].move(pX, pY-height)
@@ -592,17 +570,35 @@ class Window(QtWidgets.QMainWindow):
         self.keyRelease.emit(event.key())
 if(__name__=="__main__"):
     popup=False
+    import os
     from sys import argv, exit
     from functools import partial
     from sys import platform as _platform
     if _platform == "linux" or _platform == "linux2":
+        os.chdir("/bin/")
         font = "Ubuntu Mono"
+        x_char = "x"
+        y_char = "y"
+        e_char = "e"
+        pi_char = "π"
     elif _platform == "darwin":
         font = "Courier New"
+        x_char = "x"
+        y_char = "y"
+        e_char = "e"
+        pi_char = "π"
     elif _platform == "win32":
         font = "Consolas"
-    elif _platform == "win64":
-        font = "Consolas"
+        x_char = "𝑥"
+        y_char = "𝑦"
+        e_char = "𝜋"
+        pi_char = "𝑒"
+    else:
+        font = "Ubuntu Mono"
+        x_char = "x"
+        y_char = "y"
+        e_char = "e"
+        pi_char = "π"
     resized = QtCore.pyqtSignal()
     QtWidgets.QApplication.setStyle('Fusion')
     app = QtWidgets.QApplication(argv)
@@ -611,14 +607,19 @@ if(__name__=="__main__"):
     calc.setGeometry(0, 0, 900, 500)
     calc.setWindowTitle('SomePythonThings Calc')
     calc.setStyleSheet('''
-        background-color: #333333;
-        color:#EEEEEE; 
-        font-family: "'''+font+'''";
-        font-weight: bold; 
-        font-size:15px;
+        * {
+            background-color: #333333;
+            color:#EEEEEE; 
+            font-family: "'''+font+'''";
+            font-weight: bold; 
+            font-size:15px;
+        }
+        QScrollBar:vertical {
+            background-color: #222222
+        }
     ''')
     try:
-        calc.setWindowIcon(QtGui.QIcon("icon.png"))
+        calc.setWindowIcon(QtGui.QIcon("calc-icon.png"))
     except: pass
     buttons = {}
     for number in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
@@ -668,24 +669,24 @@ if(__name__=="__main__"):
     textbox.setReadOnly(True)
     
     buttons['PI'] = QtWidgets.QPushButton(calc)
-    buttons['PI'].setText('\ud835\udf0b')
+    buttons['PI'].setText(pi_char)
     buttons['PI'].move(0, 0)
-    buttons['PI'].clicked.connect(partial(print_symbol_and_close, "\ud835\udf0b"))
+    buttons['PI'].clicked.connect(partial(print_symbol_and_close, pi_char))
     
     buttons['E'] = QtWidgets.QPushButton(calc)
-    buttons['E'].setText("\ud835\udc52")
+    buttons['E'].setText(e_char)
     buttons['E'].move(0, 0)
-    buttons['E'].clicked.connect(partial(print_symbol_and_close, "\ud835\udc52"))
+    buttons['E'].clicked.connect(partial(print_symbol_and_close, e_char))
     
     buttons['X'] = QtWidgets.QPushButton(calc)
-    buttons['X'].setText('\ud835\udc65')
+    buttons['X'].setText(x_char)
     buttons['X'].move(0, 0)
-    buttons['X'].clicked.connect(partial(print_symbol_and_close, "\ud835\udc65"))
+    buttons['X'].clicked.connect(partial(print_symbol_and_close, x_char))
     
     buttons['Y'] = QtWidgets.QPushButton(calc)
-    buttons['Y'].setText('\ud835\udc66')
+    buttons['Y'].setText(y_char)
     buttons['Y'].move(0, 0)
-    buttons['Y'].clicked.connect(partial(print_symbol_and_close, "\ud835\udc66"))
+    buttons['Y'].clicked.connect(partial(print_symbol_and_close, y_char))
     resizeWidgets()
     calc.keyRelease.connect(on_key)
     checkUpdates()
