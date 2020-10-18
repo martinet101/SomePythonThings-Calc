@@ -1286,7 +1286,7 @@ if(__name__=="__main__"):
         minimize_icon = "-"
     elif _platform == "darwin":
         log("[  OK  ] Platform is macOS")
-        font = "Courier New"
+        font = "Courier"
         x_char = "x"
         y_char = "y"
         z_char = "z"
@@ -1343,7 +1343,7 @@ if(__name__=="__main__"):
         * {
             background-color: #333333;
             color:#EEEEEE; 
-            font-family: "'''+font+'''";
+            font-family: "'''+font+'''", monospace;
             font-weight: bold; 
             font-size:15px;
         }
@@ -1552,6 +1552,7 @@ if(__name__=="__main__"):
     grips['top-left'].setGeometry(0, 0, int(calc.width()/2), 2)
     grips['left-top'] = QtWidgets.QSizeGrip(calc)
     grips['left-top'].setGeometry(0, 0, 2, int(calc.height()/2))
+    # grips['left-top'].setVisible(True)
     flags = QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint)
     calc.setWindowFlags(flags)
     resizeWidgets()
