@@ -1,8 +1,9 @@
 #Modules
 import os
 import sys
-import webbrowser
+import time
 import platform
+import webbrowser
 from sys import argv
 from sys import platform as _platform
 from PyQt5 import QtWidgets, QtGui, QtCore
@@ -10,11 +11,9 @@ from functools import partial
 from threading import Thread
 from urllib.request import urlopen
 from qt_thread_updater import get_updater
-import time
-
 #Globals definition
 debugging=False
-actualVersion = 3.5
+actualVersion = 3.6
 canWrite = True
 operationAvailable = False
 dotAvailable = True
@@ -48,7 +47,7 @@ needResize=[False, 900, 500]
 def log(s):
     global debugging
     if(debugging or not(("[  OK  ]" in s) or ("[ INFO ]" in s))):
-        print(s)
+        print(str(time.strftime('[%H:%M:%S] ', time.gmtime(time.time())))+str(s))
 
 #Update Functions
 def checkUpdates():
@@ -73,7 +72,7 @@ def askForUpdates(response, actualVersion):
     else:
         log("[ WARN ] User aborted update!")
 
-def pureUpdate_win(url):
+def download_win(url):
     try:
         global a_char, b_char, c_char, z_char, textbox
         disableAll()
@@ -96,21 +95,20 @@ def pureUpdate_win(url):
         time.sleep(0.05)
         log(
             "[  OK  ] file downloaded to C:\\SomePythonThings\\{0}".format(filename))
-        get_updater().call_in_main(finalUpdatePart, filename)
+        get_updater().call_in_main(install_win, filename)
     except Exception as e:
         enableAll()
         get_updater().call_in_main(throw_error, "SomePythonThings Calc", "An error occurred when downloading the SomePythonTings Calc installer. Please check your internet connection and try again later\n\nError Details:\n{0}".format(str(e)))
 
-def finalUpdatePart(filename):
+def install_win(filename):
     try:
         throw_info("SomePythonThings Calc Updater", "The file has been downloaded successfully and the setup will start now. When clicking OK, the application will close and a User Account Control window will appear. Click Yes on the User Account Control Pop-up asking for permissions to launch SomePythonThings-Calc-Updater.exe. Then follow the on-screen instructions.")
-        p1 = os.system('start /B start /B {0}'.format(filename))
-        log(p1)
+        p1 = os.system('start /B {0}'.format(filename))
+        log(str(p1))
         get_updater().call_in_main(sys.exit)
         sys.exit()
     except Exception as e:
         throw_error("SomePythonThings Calc Updater", "An error occurred when downloading the SomePythonTings Calc installer. Please check your internet connection and try again later\n\nError Details:\n{0}".format(str(e)))
-
 
 def downloadUpdates(links):
     log(
@@ -139,7 +137,7 @@ def downloadUpdates(links):
                            "The update has been applied succesfully. Please reopen the application")
                 sys.exit()
             else:  # If the installation is falied on the 1st time
-                p4 = os.system('cd; echo "{0}" | sudo -S apt install ./"somepythonthings-calc_update.deb"'.format(QtWidgets.QInputDialog.getText(calc, "Autentication needed - SomePythonThings Calc",
+                p4 = os.system('cd; echo "{0}" | sudo -S apt install ./"somepythonthings-calc_update.deb" -y '.format(QtWidgets.QInputDialog.getText(calc, "Autentication needed - SomePythonThings Calc",
                                                                                                                                                         "An error occurred while autenticating. Insert your password again (This attempt will be the last one)\n\nPassword:", QtWidgets.QLineEdit.Password, '')[0]))
                 if(p4 == 0):  # If the installation is done on the 2nd time
                     throw_info("SomePythonThings Calc Updater",
@@ -164,33 +162,34 @@ def downloadUpdates(links):
             url = (links['win32'])
         log(url)
         get_updater().call_in_main(throw_info, "SomePythonThings Update", "The new version is going to be downloaded and prepared for the installation. \nThe download time may vary depending on your internet connection and your computer's performance, but it shouldn't exceed a few minutes.\nClick OK to continue.")
-        t = Thread(target=pureUpdate_win, args=(url,))
+        t = Thread(target=download_win, args=(url,))
         t.start()
         #throw_info("SomePythonThings Calc Updater","The update is being downloaded and the installer is going to be launched at the end. Please, don't quit the application until the process finishes.")
     elif _platform == 'darwin':
         log("[  OK  ] platform is macOS, starting auto-update...")
-        t = Thread(target=macOS_Download, args=(links,))
+        t = Thread(target=download_macOS, args=(links,))
         t.start()
     else:  # If os is unknown
         webbrowser.open_new(
             '://www.somepythonthings.tk/programs/somepythonthings-calc/')
 
-def macOS_Download(links):
+def download_macOS(links):
     get_updater().call_in_main(throw_info, "SomePythonThings Updater", "The new version is going to be downloaded and installed automatically. \nThe installation time may vary depending on your internet connection and your computer's performance, but it shouldn't exceed a few minutes.\nPlease DO NOT kill the program until the update is done, because it may corrupt the executable files.\nClick OK to start downloading.")
     get_updater().call_in_main(textbox.setPlainText, "The installer is being downloaded. Please wait until the download process finishes. This shouldn't take more than a couple of minutes.\n\nPlease DO NOT close the application")
-    time.sleep(0.07)
-    get_updater().call_in_main(textbox.setPlainText, "The installer is being downloaded. Please wait until the download process finishes. This shouldn't take more than a couple of minutes.\n\nPlease DO NOT close the application")
-    time.sleep(0.05)
-    p1 = os.system(
-        'cd; rm somepythonthings-calc_update.dmg; wget -O "somepythonthings-calc_update.dmg" {0}'.format(links['macos']))
-    if(p1 == 0):  # If the download is done
-        get_updater().call_in_main(macOS_install)
-    else:  # If the download is falied
+    os.system('cd; rm somepythonthings-calc_update.dmg')
+    try:  
+        filedata = urlopen(links['macos'])
+        datatowrite = filedata.read()
+        os.chdir(os.path.expanduser("~"))
+        with open("somepythonthings-calc_update.dmg", 'wb') as f:
+            f.write(datatowrite)
+        get_updater().call_in_main(install_macOS)
+        log("[  OK  ] Download is done, starting launch process.")
+    except:  
         throw_error("SomePythonThings Calc Updater", "An error occurred while downloading the update. Check your internet connection. If the problem persists, try to download and install the program manually.")
-        webbrowser.open_new(
-            'http://www.somepythonthings.tk/programs/somepythonthings-calc/')
+        webbrowser.open_new('http://www.somepythonthings.tk/programs/somepythonthings-calc/')
 
-def macOS_install():
+def install_macOS():
     get_updater().call_in_main(textbox.setPlainText, "Please follow on-screen instructions to continue")
     time.sleep(0.05)
     get_updater().call_in_main(textbox.setPlainText, "Please follow on-screen instructions to continue")
@@ -201,11 +200,15 @@ def macOS_install():
     sys.exit()
 #End of updates functions
 
-def throw_info(title, body):
+def throw_info(title, body, icon="calc-icon.png"):
     global a_char, b_char, c_char, z_char, calc
     log("[ INFO ] "+body)
     msg = QtWidgets.QMessageBox(calc)
-    msg.setIcon(QtWidgets.QMessageBox.Information)
+    if(os.path.exists(str(realpath)+"/"+str(icon))):
+        msg.setIconPixmap(QtGui.QPixmap(str(realpath)+"/"+str(icon)))
+    else:
+        msg.setIcon(QtWidgets.QMessageBox.Information)
+    #msg.setWindowFlags(QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint))
     msg.setText(body)
     msg.setWindowTitle(title)
     msg.exec_()
@@ -385,7 +388,7 @@ def huge_calculate():
         missingBrackets = bracketsToClose
         get_updater().call_in_main(print_bracket, ')')
         while(missingBrackets==bracketsToClose):
-            pass
+            continue
         canWrite=False
     log("[  OK  ] No missing brackets")
     result = pure_calculate(currentOperation.replace('^', '**').replace('√', 'sqr'))
@@ -442,7 +445,7 @@ def pure_calculate(s):
         result = "Oh \ud83d\udca9, You did it! The operation is too hard to be calculated!  "
     return result
 def calculate():
-    global a_char, b_char, title,showOnTopEnabled, c_char, z_char, x_prev_value, use_x, use_y, use_z, use_a, use_b, use_c, y_prev_value, z_prev_value, a_prev_value, b_prev_value, c_prev_value, x_char, y_char, e_char, pi_char,  calc, currentOperation, operationAvailable, needClear, previousResult, dotAvailable, bracketsToClose, calcHistory, textbox, result, calc, numberAvailable, symbolAvailable
+    global a_char, b_char, title, showOnTopEnabled, c_char, z_char, x_prev_value, use_x, use_y, use_z, use_a, use_b, use_c, y_prev_value, z_prev_value, a_prev_value, b_prev_value, c_prev_value, x_char, y_char, e_char, pi_char,  calc, currentOperation, operationAvailable, needClear, previousResult, dotAvailable, bracketsToClose, calcHistory, textbox, result, calc, numberAvailable, symbolAvailable
     if(not needClear):
         disableAll()
         use_x = False
@@ -451,7 +454,7 @@ def calculate():
         use_a = False
         use_b = False
         use_c = False
-        if(showOnTopEnabled or True):
+        if(_platform=='darwin'):
             title.setText('SomePythonThings Calc:  '+currentOperation)
         calc.setWindowTitle('SomePythonThings Calc:  '+currentOperation)
         while str(currentOperation[0:1]) == '0':
@@ -468,32 +471,32 @@ def calculate():
             x = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+x_char+" on the operation.\nEnter value for "+x_char+": ", QtWidgets.QLineEdit.Normal, str(x_prev_value))
             x_prev_value = (x[0].replace(",", "."))
             use_x = True
-            currentOperation = currentOperation.replace(x_char, x[0].replace(",", "."))
+            currentOperation = currentOperation.replace(x_char, '({0})'.format(x[0].replace(",", ".")))
         if(y_char in currentOperation):
             y = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+y_char+" on the operation.\nEnter value for "+y_char+": ", QtWidgets.QLineEdit.Normal, str(y_prev_value))
             y_prev_value = (y[0].replace(",", "."))
             use_y = True
-            currentOperation = currentOperation.replace(y_char, y[0].replace(",", "."))
+            currentOperation = currentOperation.replace(y_char, '({0})'.format(y[0].replace(",", ".")))
         if(z_char in currentOperation):
             z = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+z_char+" on the operation.\nEnter value for "+z_char+": ", QtWidgets.QLineEdit.Normal, str(z_prev_value))
             z_prev_value = (z[0].replace(",", "."))
             use_z = True
-            currentOperation = currentOperation.replace(z_char, z[0].replace(",", "."))
+            currentOperation = currentOperation.replace(z_char, '({0})'.format(z[0].replace(",", ".")))
         if(a_char in currentOperation):
             a = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+a_char+" on the operation.\nEnter value for "+a_char+": ", QtWidgets.QLineEdit.Normal, str(a_prev_value))
             a_prev_value = (a[0].replace(",", "."))
             use_a = True
-            currentOperation = currentOperation.replace(a_char, a[0].replace(",", "."))
+            currentOperation = currentOperation.replace(a_char, '({0})'.format(a[0].replace(",", ".")))
         if(b_char in currentOperation):
             b = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+b_char+" on the operation.\nEnter value for "+b_char+": ", QtWidgets.QLineEdit.Normal, str(b_prev_value))
             b_prev_value = (b[0].replace(",", "."))
             use_b = True
-            currentOperation = currentOperation.replace(b_char, b[0].replace(",", "."))
+            currentOperation = currentOperation.replace(b_char, '({0})'.format(b[0].replace(",", ".")))
         if(c_char in currentOperation):
             c = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+c_char+" on the operation.\nEnter value for "+c_char+": ", QtWidgets.QLineEdit.Normal, str(c_prev_value))
             c_prev_value = (c[0].replace(",", "."))
             use_c = True
-            currentOperation = currentOperation.replace(c_char, c[0].replace(",", "."))
+            currentOperation = currentOperation.replace(c_char, '({0})'.format(c[0].replace(",", ".")))
         if use_x:
             textbox.appendPlainText(' {0} value is "{1}" '.format(x_char, x_prev_value))
         if use_y:
@@ -720,17 +723,19 @@ def maximizeCalc(side='center'):
             calc.showNormal()
             log("[  OK  ] Restoring")
     elif(side=='right'):
-        log("[ INFO ] Aligning to the right...")
-        needResize=[True, calc.height(), calc.width()]
-        screen = calc.screen()
-        size = screen.availableGeometry()
-        calc.setGeometry(0, 0, int(size.width()/2), size.height())
+        if(_platform=='darwin'):
+            log("[ INFO ] Aligning to the right...")
+            needResize=[True, calc.height(), calc.width()]
+            screen = calc.screen()
+            size = screen.availableGeometry()
+            calc.setGeometry(0, 0, int(size.width()/2), size.height())
     elif(side=='left'):
-        log("[ INFO ] Aligning to the left...")
-        needResize=[True, calc.height(), calc.width()]
-        screen = calc.screen()
-        size = screen.availableGeometry()
-        calc.setGeometry(int(calc.screen().size().width()/2), 0, int(size.width()/2), size.height())
+        if(_platform=='darwin'):
+            log("[ INFO ] Aligning to the left...")
+            needResize=[True, calc.height(), calc.width()]
+            screen = calc.screen()
+            size = screen.availableGeometry()
+            calc.setGeometry(int(calc.screen().size().width()/2), 0, int(size.width()/2), size.height())
 
 def saveHistory():
     global calc, textbox
@@ -762,21 +767,29 @@ def showOnTop():
     global showOnTopEnabled, title, calc, topAction
     if(not(showOnTopEnabled)):
         showOnTopEnabled = True
-        flags = QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.BypassWindowManagerHint)# | QtCore.Qt.X11BypassWindowManagerHint)
+        if(_platform=='darwin'):
+            flags = QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.BypassWindowManagerHint)# | QtCore.Qt.X11BypassWindowManagerHint)
+        else:
+            flags = QtCore.Qt.WindowFlags(QtCore.Qt.WindowStaysOnTopHint)#| QtCore.Qt.X11BypassWindowManagerHint)# | QtCore.Qt.BypassWindowManagerHint)# | QtCore.Qt.X11BypassWindowManagerHint)
         calc.setWindowFlags(flags)
-        buttons['exit'].show()
-        buttons['minimize'].show()
-        buttons['maximize'].show()
+        if(_platform=='darwin'):
+            buttons['exit'].show()
+            buttons['minimize'].show()
+            buttons['maximize'].show()
         topAction.setCheckable(True)
-        title.setText(calc.windowTitle())
-        title.setGeometry(170, 1, calc.width()-292, 28)
-        title.show()
+        if(_platform=='darwin'):
+            title.setText(calc.windowTitle())
+            title.setGeometry(170, 1, calc.width()-292, 28)
+            title.show()
         log("[  OK  ] Re-showing Window...")
         calc.show()
         resizeWidgets()
     else:
         showOnTopEnabled = False
-        flags = QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint)
+        if(_platform=='darwin'):
+            flags = QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint)
+        else:
+            flags = QtCore.Qt.WindowFlags()
         calc.setWindowFlags(flags)
         topAction.setCheckable(True)
         log("[  OK  ] Re-showing Window...")
@@ -840,14 +853,15 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
         small_6th_column = int((16.6666*4)/100*winWidth)
         small_7th_column = int((16.6666*5)/100*winWidth)
     textbox.resize(fullWinWidth-4 ,int((winHeight/100*30)-28))
-    grips['bottom-right'].setGeometry(int(calc.width()/2)+1, int(calc.height()-2), int(calc.width()/2)+1, 2)
-    grips['right-bottom'].setGeometry(int(calc.width())-2, int(calc.height()/2)+1, 2, int(calc.height()/2)+1)
-    grips['bottom-left'].setGeometry(0, int(calc.height()-2), int(calc.width()/2)+1, 2)
-    grips['left-bottom'].setGeometry(0, int(calc.height()/2)+1, 2, int(calc.height()/2)+1)
-    grips['top-right'].setGeometry(int(calc.width()/2)+1, 0, int(calc.width()/2)+1, 2)
-    grips['right-top'].setGeometry(int(calc.width())-2, 0, 2, int(calc.height()/2)+1)
-    grips['top-left'].setGeometry(0, 0, int(calc.width()/2)+1, 2)
-    grips['left-top'].setGeometry(0, 0, 2, int(calc.height()/2)+1)
+    if(_platform=='darwin'):
+        grips['bottom-right'].setGeometry(int(calc.width()/2)+1, int(calc.height()-2), int(calc.width()/2)+1, 2)
+        grips['right-bottom'].setGeometry(int(calc.width())-2, int(calc.height()/2)+1, 2, int(calc.height()/2)+1)
+        grips['bottom-left'].setGeometry(0, int(calc.height()-2), int(calc.width()/2)+1, 2)
+        grips['left-bottom'].setGeometry(0, int(calc.height()/2)+1, 2, int(calc.height()/2)+1)
+        grips['top-right'].setGeometry(int(calc.width()/2)+1, 0, int(calc.width()/2)+1, 2)
+        grips['right-top'].setGeometry(int(calc.width())-2, 0, 2, int(calc.height()/2)+1)
+        grips['top-left'].setGeometry(0, 0, int(calc.width()/2)+1, 2)
+        grips['left-top'].setGeometry(0, 0, 2, int(calc.height()/2)+1)
     if(int(20/900*fullWinWidth)<int(20/500*winHeight)):
         fontsize = str(int(20/900*fullWinWidth))
         log("[  OK  ] Width > Height, font size is {0}".format(fontsize))
@@ -915,7 +929,7 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
     buttons['CO'].resize(small_width, height) #Resize button
     buttons['CA'].move(small_7th_column, first_row)
     buttons['CA'].resize(small_width, height) #Resize button
-    if(showOnTopEnabled or True):
+    if(_platform=='darwin'):
         buttons['exit'].move(fullWinWidth-42, 2)
         buttons['exit'].resize(40, 26) #Resize button
         buttons['maximize'].move(fullWinWidth-82, 2)
@@ -932,7 +946,8 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
                 font-size:"""+fontsize+"""px; 
                 color: #DDDDDD; 
                 font-family: \""""+font+"""\", monospace;
-                font-weight: bold; 
+                font-weight: bold;
+                border-radius: 0px; 
             }
             QPushButton::hover
             {
@@ -978,7 +993,8 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
                 font-size:"""+fontsize+"""px; 
                 color: #DDDDDD; 
                 font-family: \""""+font+"""\", monospace;
-                font-weight: bold; 
+                font-weight: bold;
+                border-radius: 0px;
             }
             QPushButton::hover
             {
@@ -1026,7 +1042,8 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
                 font-size:"""+fontsize+"""px; 
                 color: #DDDDDD; 
                 font-family: \""""+font+"""\", monospace;
-                font-weight: bold; 
+                font-weight: bold;
+                border-radius: 0px;
             }
             QPushButton::hover
             {
@@ -1064,7 +1081,7 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
         buttons["PASTE"].move(pX, pY+pHeight*5)
         buttons["PASTE"].resize(pWidth, pHeight+1)
         buttons['POPUP'].hide()
-    if(showOnTopEnabled or True):
+    if(_platform=='darwin'):
         title.setGeometry(175, 2, fullWinWidth-295, 26)
         dragBar.setGeometry(175, 2, fullWinWidth-295, 26)
         title.setAlignment(QtCore.Qt.AlignCenter)
@@ -1126,6 +1143,7 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
             font-family: \""""+font+"""\", monospace;
             font-weight: bold;
             width: 25%;
+            border-radius: 0px;
         }
         QPushButton::hover
         {
@@ -1142,6 +1160,7 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
             color: #DDDDDD; 
             font-family: \""""+font+"""\", monospace;
             font-weight: bold; 
+            border-radius: 0px;
         }
         QPushButton::hover
         {
@@ -1157,7 +1176,8 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
             font-size:"""+fontsize+"""px;
             color: #DDDDDD; 
             font-family: \""""+font+"""\", monospace;
-            font-weight: bold; 
+            font-weight: bold;
+            border-radius: 0px; 
         }  
         QPushButton::hover
         {
@@ -1173,7 +1193,8 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
             font-size:"""+fontsize+"""px; 
             color: #DDDDDD; 
             font-family: \""""+font+"""\", monospace;
-            font-weight: bold; 
+            font-weight: bold;
+            border-radius: 0px; 
         }  
         QPushButton::hover
         {
@@ -1266,6 +1287,9 @@ class Window(QtWidgets.QMainWindow):
             self.oldPos = event.globalPos()
 
 if(__name__=="__main__"):
+    if(len(sys.argv)>1):
+        if('debug' in sys.argv[1]):
+            debugging=True
     log("[      ] Welcome to SomePythonThings Calc {0} log. debugging is set to {1}".format(actualVersion, debugging))
     if _platform == "linux" or _platform == "linux2":
         log("[  OK  ] Platform is linux")
@@ -1284,6 +1308,7 @@ if(__name__=="__main__"):
         close_icon = "✕"
         maximize_icon = "□"
         minimize_icon = "-"
+        realpath = "/bin"
     elif _platform == "darwin":
         log("[  OK  ] Platform is macOS")
         font = "Courier"
@@ -1300,9 +1325,21 @@ if(__name__=="__main__"):
         close_icon = "✕"
         maximize_icon = "□"
         minimize_icon = "-"
+        realpath = "/Applications/SomePythonThings Calc.app/Contents/Resources"
     elif _platform == "win32":
         log("[  OK  ] Platform is windows")
-        font = "Consolas"
+        if int(platform.release()) >= 10: #Font check: os is windows 10
+            font = "Cascadia Mono"#"Cascadia Mono"
+            log("[  OK  ] OS detected is win32 release 10 ")
+        else:# os is windows 7/8
+            font="Consolas"#"Consolas"
+            log("[  OK  ] OS detected is win32 release 8 or less ")
+        if(os.path.exists("\\Program Files\\SomePythonThingsCalc\\resources-sptmusic")):
+            realpath = "/Program Files/SomePythonThingsCalc/resources-sptmusic"
+            log("[  OK  ] Directory set to /Program Files/SomePythonThingsCalc/resources-sptmusic")
+        else:
+            realpath = os.path.dirname(os.path.realpath(__file__)).replace('\\', '/')
+            log("[ WARN ] Directory /Program Files/SomePythonThingsCalc/ not found, getting working directory...")
         x_char = "𝑥"
         y_char = "𝑦"
         z_char = "𝑧"
@@ -1332,6 +1369,7 @@ if(__name__=="__main__"):
         close_icon = "✕"
         maximize_icon = "□"
         minimize_icon = "-"
+        realpath='.'
     resized = QtCore.pyqtSignal()
     QtWidgets.QApplication.setStyle('Fusion')
     app = QtWidgets.QApplication(argv)
@@ -1372,9 +1410,16 @@ if(__name__=="__main__"):
             border:5px solid  #000000;
 
         }
+        QPushButton {
+            border: none;
+            height: 30px;
+            width: 80px;
+            background-color:#111111;
+            border-radius: 3px;
+        }
     ''')
     try:
-        calc.setWindowIcon(QtGui.QIcon("calc-icon.png"))
+        calc.setWindowIcon(QtGui.QIcon(realpath+"/calc-icon.png"))
     except: pass
     buttons = {}
     for number in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
@@ -1516,45 +1561,46 @@ if(__name__=="__main__"):
     sizeMenu.addAction(wideResize)
     sizeMenu.addAction(bigResize)
     sizeMenu.addAction(giantResize)
-    buttons['exit'] = QtWidgets.QPushButton(calc)
-    buttons['exit'].setText(close_icon)
-    buttons['exit'].move(1, 1)
-    buttons['exit'].clicked.connect(quitCalc)
-    buttons['minimize'] = QtWidgets.QPushButton(calc)
-    buttons['minimize'].setText(minimize_icon)
-    buttons['minimize'].move(1, 1)
-    buttons['minimize'].clicked.connect(minimizeCalc)
-    buttons['maximize'] = QtWidgets.QPushButton(calc)
-    buttons['maximize'].setText(maximize_icon)
-    buttons['maximize'].move(1, 1)
-    buttons['maximize'].clicked.connect(partial(maximizeCalc, 'center'))
-    dragBar = QtWidgets.QLabel(calc)
-    dragBar.move(1, 1)
-    dragBar.hide()
-    title = QtWidgets.QLabel(calc)
-    title.setText("SomePythonThings Calc")
-    title.setAlignment(QtCore.Qt.AlignCenter)
-    title.move(2, 2)
-    grips = {}
-    grips['bottom-right'] = QtWidgets.QSizeGrip(calc)
-    grips['bottom-right'].setGeometry(int(calc.width()/2)+1, int(calc.height()-2), int(calc.width()/2), 2)
-    grips['right-bottom'] = QtWidgets.QSizeGrip(calc)
-    grips['right-bottom'].setGeometry(int(calc.width())-2, int(calc.height()/2)+1, 2, int(calc.height()/2))
-    grips['bottom-left'] = QtWidgets.QSizeGrip(calc)
-    grips['bottom-left'].setGeometry(0, int(calc.height()-2), int(calc.width()/2), 2)
-    grips['left-bottom'] = QtWidgets.QSizeGrip(calc)
-    grips['left-bottom'].setGeometry(0, int(calc.height()/2)+1, 2, int(calc.height()/2))
-    grips['top-right'] = QtWidgets.QSizeGrip(calc)
-    grips['top-right'].setGeometry(int(calc.width()/2)+1, 0, int(calc.width()/2), 2)
-    grips['right-top'] = QtWidgets.QSizeGrip(calc)
-    grips['right-top'].setGeometry(int(calc.width())-2, 0, 2, int(calc.height()/2))
-    grips['top-left'] = QtWidgets.QSizeGrip(calc)
-    grips['top-left'].setGeometry(0, 0, int(calc.width()/2), 2)
-    grips['left-top'] = QtWidgets.QSizeGrip(calc)
-    grips['left-top'].setGeometry(0, 0, 2, int(calc.height()/2))
-    # grips['left-top'].setVisible(True)
-    flags = QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint)
-    calc.setWindowFlags(flags)
+    if(_platform=='darwin'):
+        buttons['exit'] = QtWidgets.QPushButton(calc)
+        buttons['exit'].setText(close_icon)
+        buttons['exit'].move(1, 1)
+        buttons['exit'].clicked.connect(quitCalc)
+        buttons['minimize'] = QtWidgets.QPushButton(calc)
+        buttons['minimize'].setText(minimize_icon)
+        buttons['minimize'].move(1, 1)
+        buttons['minimize'].clicked.connect(minimizeCalc)
+        buttons['maximize'] = QtWidgets.QPushButton(calc)
+        buttons['maximize'].setText(maximize_icon)
+        buttons['maximize'].move(1, 1)
+        buttons['maximize'].clicked.connect(partial(maximizeCalc, 'center'))
+        dragBar = QtWidgets.QLabel(calc)
+        dragBar.move(1, 1)
+        dragBar.hide()
+        title = QtWidgets.QLabel(calc)
+        title.setText("SomePythonThings Calc")
+        title.setAlignment(QtCore.Qt.AlignCenter)
+        title.move(2, 2)
+        grips = {}
+        grips['bottom-right'] = QtWidgets.QSizeGrip(calc)
+        grips['bottom-right'].setGeometry(int(calc.width()/2)+1, int(calc.height()-2), int(calc.width()/2), 2)
+        grips['right-bottom'] = QtWidgets.QSizeGrip(calc)
+        grips['right-bottom'].setGeometry(int(calc.width())-2, int(calc.height()/2)+1, 2, int(calc.height()/2))
+        grips['bottom-left'] = QtWidgets.QSizeGrip(calc)
+        grips['bottom-left'].setGeometry(0, int(calc.height()-2), int(calc.width()/2), 2)
+        grips['left-bottom'] = QtWidgets.QSizeGrip(calc)
+        grips['left-bottom'].setGeometry(0, int(calc.height()/2)+1, 2, int(calc.height()/2))
+        grips['top-right'] = QtWidgets.QSizeGrip(calc)
+        grips['top-right'].setGeometry(int(calc.width()/2)+1, 0, int(calc.width()/2), 2)
+        grips['right-top'] = QtWidgets.QSizeGrip(calc)
+        grips['right-top'].setGeometry(int(calc.width())-2, 0, 2, int(calc.height()/2))
+        grips['top-left'] = QtWidgets.QSizeGrip(calc)
+        grips['top-left'].setGeometry(0, 0, int(calc.width()/2), 2)
+        grips['left-top'] = QtWidgets.QSizeGrip(calc)
+        grips['left-top'].setGeometry(0, 0, 2, int(calc.height()/2))
+        # grips['left-top'].setVisible(True)
+        flags = QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint)
+        calc.setWindowFlags(flags)
     resizeWidgets()
     calc.setMinimumSize(210, 250)
     calc.show()
