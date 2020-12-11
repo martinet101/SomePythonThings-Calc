@@ -3,29 +3,20 @@ import os
 import sys
 import time
 import platform
+import subprocess
 import webbrowser
 from sys import argv
 from sys import platform as _platform
-from PyQt5 import QtWidgets, QtGui, QtCore
+from PySide2 import QtWidgets, QtGui, QtCore
 from functools import partial
 from threading import Thread
 from urllib.request import urlopen
 from qt_thread_updater import get_updater
+
 #Globals definition
 debugging=False
-actualVersion = 3.6
-canWrite = True
-operationAvailable = False
-dotAvailable = True
-numberAvailable = True
-symbolAvailable = True
-bracketsToClose = 0
-needClear = False
-previousResult = ''
-calcHistory = ''
-currentOperation = ''
-result = 0
-reWriteOperation = False
+actualVersion = 3.7
+
 popup=False
 use_x = False
 use_y = False
@@ -33,50 +24,73 @@ use_z = False
 use_a = False
 use_b = False
 use_c = False
+maximize=False
+canWrite = True
+needClear = False
+dotAvailable = True
+numberAvailable = True
+symbolAvailable = True
+reWriteOperation = False
+showOnTopEnabled = False
+operationAvailable = False
+
+result = 0
 x_prev_value = 0
 y_prev_value = 0
 z_prev_value = 0
 a_prev_value = 0
 b_prev_value = 0
 c_prev_value = 0
-showOnTopEnabled = False
-maximize=False
+bracketsToClose = 0
+
+calcHistory = ''
+previousResult = ''
+currentOperation = ''
+
 needResize=[False, 900, 500]
 
-#Log Function
+#Essential functions
 def log(s):
     global debugging
-    if(debugging or not(("[  OK  ]" in s) or ("[ INFO ]" in s))):
+    if(debugging or not(("[   OK   ]" in s) or ("[  INFO  ]" in s))):
         print(str(time.strftime('[%H:%M:%S] ', time.gmtime(time.time())))+str(s))
 
+def run(s):
+    process =  subprocess.run(s.split(' '), shell=True)
+    return process.returncode
+
 #Update Functions
-def checkUpdates():
+def checkUpdates(bypass=False):
     global a_char, b_char, c_char, z_char, calc, actualVersion
     try:
         response = urlopen("http://www.somepythonthings.tk/versions/calc.ver")
         response = response.read().decode("utf8")
-        if float(response.split("///")[0]) > actualVersion:
+        if(bypass=="True"):
+            get_updater().call_in_main(askForUpdates, response, actualVersion, bypass="True")
+        elif float(response.split("///")[0]) > actualVersion:
             get_updater().call_in_main(askForUpdates, response, actualVersion)
         else:
-            log("[  OK  ] No updates found")
+            log("[   OK   ] No updates found")
             return "No"
     except:
-        log("[ WARN ] Unacble to reach http://www.somepythonthings.tk/versions/calc.ver. Are you connected to the internet?")
+        log("[  WARN  ] Unacble to reach http://www.somepythonthings.tk/versions/calc.ver. Are you connected to the internet?")
         return "Unable"
     
-def askForUpdates(response, actualVersion):
-    if QtWidgets.QMessageBox.Yes == QtWidgets.QMessageBox.question(calc, 'SomePythonThings Calc', "There are some updates available for SomePythonThings Calc:\nYour version: "+str(actualVersion)+"\nNew version: "+str(response.split("///")[0])+"\nNew features: \n"+response.split("///")[1]+"\nDo you want to go download and install them?", QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.Yes):
+def askForUpdates(response, actualVersion, bypass=False):
+    if(bypass=="True"):
+        downloadUpdates({'debian': response.split("///")[2].replace('\n', ''), 'win32': response.split("///")[3].replace('\n', ''), 'win64': response.split("///")[4].replace('\n', ''), 'macos':response.split("///")[5].replace('\n', '')})
+    elif QtWidgets.QMessageBox.Yes == QtWidgets.QMessageBox.question(calc, 'SomePythonThings Calc', "There are some updates available for SomePythonThings Calc:\nYour version: "+str(actualVersion)+"\nNew version: "+str(response.split("///")[0])+"\nNew features: \n"+response.split("///")[1]+"\nDo you want to go download and install them?", QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.Yes):
         #                'debian': debian link in posotion 2                   'win32' Windows 32bits link in position 3            'win64' Windows 64bits in position 4                 'macos' macOS 64bits INTEL in position 5
         downloadUpdates({'debian': response.split("///")[2].replace('\n', ''), 'win32': response.split("///")[3].replace('\n', ''), 'win64': response.split("///")[4].replace('\n', ''), 'macos':response.split("///")[5].replace('\n', '')})
         return True
     else:
-        log("[ WARN ] User aborted update!")
+        log("[  WARN  ] User aborted update!")
 
 def download_win(url):
     try:
         global a_char, b_char, c_char, z_char, textbox
         disableAll()
-        os.system('cd %windir%\\..\\ & mkdir SomePythonThings')
+        run('cd %windir%\\..\\ & mkdir SomePythonThings')
         time.sleep(0.01)
         os.chdir("{0}/../SomePythonThings".format(os.environ['windir']))
         get_updater().call_in_main(textbox.setPlainText, "The installer is being downloaded. Please wait until the download process finishes. This shouldn't take more than a couple of minutes.\n\nPlease DO NOT close the application")
@@ -94,7 +108,7 @@ def download_win(url):
         get_updater().call_in_main(textbox.setPlainText, "Please follow on-screen instructions to continue")
         time.sleep(0.05)
         log(
-            "[  OK  ] file downloaded to C:\\SomePythonThings\\{0}".format(filename))
+            "[   OK   ] file downloaded to C:\\SomePythonThings\\{0}".format(filename))
         get_updater().call_in_main(install_win, filename)
     except Exception as e:
         enableAll()
@@ -103,8 +117,7 @@ def download_win(url):
 def install_win(filename):
     try:
         throw_info("SomePythonThings Calc Updater", "The file has been downloaded successfully and the setup will start now. When clicking OK, the application will close and a User Account Control window will appear. Click Yes on the User Account Control Pop-up asking for permissions to launch SomePythonThings-Calc-Updater.exe. Then follow the on-screen instructions.")
-        p1 = os.system('start /B {0}'.format(filename))
-        log(str(p1))
+        run('start /B {0} /silent'.format(filename))
         get_updater().call_in_main(sys.exit)
         sys.exit()
     except Exception as e:
@@ -112,9 +125,9 @@ def install_win(filename):
 
 def downloadUpdates(links):
     log(
-        '[  OK  ] Reached downloadUpdates. Download links are "{0}"'.format(links))
+        '[   OK   ] Reached downloadUpdates. Download links are "{0}"'.format(links))
     if _platform == 'linux' or _platform == 'linux2':  # If the OS is linux
-        log("[  OK  ] platform is linux, starting auto-update...")
+        log("[   OK   ] platform is linux, starting auto-update...")
         throw_info("SomePythonThings Updater", "The new version is going to be downloaded and installed automatically. \nThe installation time may vary depending on your internet connection and your computer's performance, but it shouldn't exceed a few minutes.\nPlease DO NOT kill the program until the update is done, because it may corrupt the executable files.\nClick OK to start downloading.")
         get_updater().call_in_main(textbox.setPlainText, "The installer is being downloaded. Please wait until the download process finishes. This shouldn't take more than a couple of minutes.\n\nPlease DO NOT close the application")
         time.sleep(0.07)
@@ -132,7 +145,7 @@ def downloadUpdates(links):
                 p3 = os.system(
                     'cd; rm "./somepythonthings-calc_update.deb"')
                 if(p3 != 0):  # If the downloaded file cannot be removed
-                    log("[ WARN ] Could not delete update file.")
+                    log("[  WARN  ] Could not delete update file.")
                 throw_info("SomePythonThings Calc Updater",
                            "The update has been applied succesfully. Please reopen the application")
                 sys.exit()
@@ -166,7 +179,7 @@ def downloadUpdates(links):
         t.start()
         #throw_info("SomePythonThings Calc Updater","The update is being downloaded and the installer is going to be launched at the end. Please, don't quit the application until the process finishes.")
     elif _platform == 'darwin':
-        log("[  OK  ] platform is macOS, starting auto-update...")
+        log("[   OK   ] platform is macOS, starting auto-update...")
         t = Thread(target=download_macOS, args=(links,))
         t.start()
     else:  # If os is unknown
@@ -184,7 +197,7 @@ def download_macOS(links):
         with open("somepythonthings-calc_update.dmg", 'wb') as f:
             f.write(datatowrite)
         get_updater().call_in_main(install_macOS)
-        log("[  OK  ] Download is done, starting launch process.")
+        log("[   OK   ] Download is done, starting launch process.")
     except:  
         throw_error("SomePythonThings Calc Updater", "An error occurred while downloading the update. Check your internet connection. If the problem persists, try to download and install the program manually.")
         webbrowser.open_new('http://www.somepythonthings.tk/programs/somepythonthings-calc/')
@@ -196,26 +209,27 @@ def install_macOS():
     time.sleep(0.05)
     throw_info("SomePythonThings Calc Updater", "The updaye file has been downloaded successfully. When you click OK, SomePythonThings Calc is going to be closed and a DMG file will automatically be opened. Then, you'll need to drag the application on the DMG to the applications folder (also on the DMG). Click OK to continue")
     p2 = os.system('cd; open ./"somepythonthings-calc_update.dmg"')
-    log("[ INFO ] macOS installation unix output code is \"{0}\"".format(p2))
+    log("[  INFO  ] macOS installation unix output code is \"{0}\"".format(p2))
     sys.exit()
 #End of updates functions
 
 def throw_info(title, body, icon="calc-icon.png"):
     global a_char, b_char, c_char, z_char, calc
-    log("[ INFO ] "+body)
+    if(icon==False):
+        icon='calc-icon.png'
+    log("[  INFO  ] "+body)
     msg = QtWidgets.QMessageBox(calc)
     if(os.path.exists(str(realpath)+"/"+str(icon))):
         msg.setIconPixmap(QtGui.QPixmap(str(realpath)+"/"+str(icon)))
     else:
         msg.setIcon(QtWidgets.QMessageBox.Information)
-    #msg.setWindowFlags(QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint))
     msg.setText(body)
     msg.setWindowTitle(title)
     msg.exec_()
 
 def throw_warning(title, body, warning="Not Specified"):
     global a_char, b_char, c_char, z_char, calc
-    log("[ WARN ] "+body+"\n\tWarning reason: "+warning)
+    log("[  WARN  ] "+body+"\n\tWarning reason: "+warning)
     msg = QtWidgets.QMessageBox(calc)
     msg.setIcon(QtWidgets.QMessageBox.Warning)
     msg.setText(body)
@@ -224,7 +238,7 @@ def throw_warning(title, body, warning="Not Specified"):
 
 def throw_error(title, body, error="Not Specified"):
     global a_char, b_char, c_char, z_char, calc
-    log("[ ERROR ] "+body+"\n\tError reason: "+error)
+    log("[ FAILED ] "+body+"\n\tError reason: "+error)
     msg = QtWidgets.QMessageBox(calc)
     msg.setIcon(QtWidgets.QMessageBox.Critical)
     msg.setText(body)
@@ -240,6 +254,11 @@ def appendText(t):
     textbox.setPlainText(str(textbox.toPlainText())+str(t))
     scrollBottom()
 
+def changeFontSize(button, size):
+    global font, buttons
+    buttons[button].setFont(QtGui.QFont(str(font), int(size)))
+    #button.setStyleSheet(f"* {{font-size: {size}px;}}")
+
 def print_symbol_and_close(s):
     print_symbol(s)
     show_popup()
@@ -252,7 +271,7 @@ def ANSWER():
 def pasteOperation():
     show_popup()
     global textbox, currentOperation, needClear
-    log("[ INFO ] Starting pasteOperaion()")
+    log("[  INFO  ] Starting pasteOperaion()")
     toPaste = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "Paste here your custom operation: ", QtWidgets.QLineEdit.Normal, str(0))[0]
     if needClear:
         needClear=False
@@ -266,7 +285,7 @@ def pasteOperation():
 def editOperation():
     show_popup()
     global currentOperation, calcHistory, needClear
-    log("[ INFO ] Starting editOperation()")
+    log("[  INFO  ] Starting editOperation()")
     toEdit = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "Edit your operation: (This will erase the history)", QtWidgets.QLineEdit.Normal, str(currentOperation))[0]
     textbox.setPlainText(toEdit)
     currentOperation = toEdit
@@ -276,7 +295,9 @@ def editOperation():
 def print_symbol(s):
     s = str(s)
     global a_char, b_char, c_char, z_char, x_char, y_char, e_char, pi_char,  textbox, needClear, currentOperation, operationAvailable, canWrite, symbolAvailable, numberAvailable, dotAvailable
-    if canWrite and symbolAvailable:
+    if canWrite:
+        if not symbolAvailable:
+            print_operation("*")
         if needClear:
             appendText('\n\n')
             needClear = False
@@ -293,7 +314,9 @@ def print_symbol(s):
 def print_number(n):
     n = str(n)
     global a_char, b_char, c_char, z_char, x_char, y_char, e_char, pi_char,  textbox, needClear, currentOperation, operationAvailable, canWrite, numberAvailable, symbolAvailable
-    if canWrite and numberAvailable:
+    if canWrite:
+        if not numberAvailable:
+            print_operation("*")
         if needClear:
             appendText('\n\n')
             needClear = False
@@ -308,7 +331,7 @@ def print_number(n):
 
 def print_operation(o):
     global a_char, b_char, c_char, z_char, x_char, y_char, e_char, pi_char,  previousResult, currentOperation, needClear, dotAvailable, bracketsToClose, operationAvailable, canWrite, symbolAvailable, numberAvailable
-    log("[ INFO ] Starting print_operation(): canWrite={0}, needClear={1}, operationAvailable={2}, o={3}".format(canWrite, needClear, operationAvailable, o))
+    log("[  INFO  ] Starting print_operation(): canWrite={0}, needClear={1}, operationAvailable={2}, o={3}".format(canWrite, needClear, operationAvailable, o))
     if canWrite:
         scrollBottom()
         if needClear:
@@ -338,7 +361,7 @@ def print_operation(o):
 
 def print_bracket(b):
     global a_char, b_char, c_char, z_char, x_char, y_char, e_char, pi_char,  operationAvailable, bracketsToClose, currentOperation, needClear, canWrite, dotAvailable, numberAvailable, symbolAvailable
-    log("[ INFO ] Starting print_bracket(): canWrite={0}, needClear={1}, operationAvailable={2}, o={3}".format(canWrite, needClear, operationAvailable, b))
+    log("[  INFO  ] Starting print_bracket(): canWrite={0}, needClear={1}, operationAvailable={2}, o={3}".format(canWrite, needClear, operationAvailable, b))
     if canWrite:
         operationAvailable = False
         if b == ')':
@@ -382,15 +405,15 @@ def huge_calculate():
     global a_char, b_char, c_char, z_char, x_char, canWrite, y_char, use_x, use_y, e_char, pi_char,  textbox,calc, operationAvailable, reWriteOperation,needClear, previousResult, dotAvailable, bracketsToClose, calcHistory, textbox, result, calc, numberAvailable, symbolAvailable
     reWriteOperation = False
     global currentOperation
-    while bracketsToClose>=1:
-        log("[ WARN ] Brackets Missing !(missing {0} brackets)".format(bracketsToClose))
+    while currentOperation.count('(')>currentOperation.count(')'):
+        log("[  WARN  ] Brackets Missing !(missing {0} brackets)".format(currentOperation.count('(')-currentOperation.count(')')))
         canWrite=True
-        missingBrackets = bracketsToClose
+        missingBrackets = currentOperation.count('(')-currentOperation.count(')')
         get_updater().call_in_main(print_bracket, ')')
-        while(missingBrackets==bracketsToClose):
+        while(missingBrackets==currentOperation.count('(')-currentOperation.count(')')):
             continue
         canWrite=False
-    log("[  OK  ] No missing brackets")
+    log("[   OK   ] No missing brackets")
     result = pure_calculate(currentOperation.replace('^', '**').replace('√', 'sqr'))
     if  not "  " in str(result):
         needClear = True
@@ -407,28 +430,28 @@ def huge_calculate():
             symbolAvailable = True
             numberAvailable = True
         else:
-            log("[ WARN ] SyntaxError or ZeroDivisionError raised by eval(). Rewriting operation...")
+            log("[  WARN  ] SyntaxError or ZeroDivisionError raised by eval(). Rewriting operation...")
             reWriteOperation = True
             get_updater().call_in_main(textbox.appendPlainText, result+'\n\n'+currentOperation.replace('**', '^'))
             enableAll()
             sys.exit()
     calcHistory =  textbox.toPlainText()
     if use_x or use_y:
-        log("[  OK  ] X, Y, Z, A, B or C detected.")
+        log("[   OK   ] X, Y, Z, A, B or C detected.")
         try:
             result = int(result)
-            get_updater().call_in_main(textbox.appendPlainText, ' result = '+f"{result:,}")
+            get_updater().call_in_main(textbox.appendPlainText, ' result = '+f"{result:,}".replace('e+', ' * 10^'))
         except:
-            log("[ WARN ] Unable to int() result. Result value is "+result)
-            get_updater().call_in_main(textbox.appendPlainText, ' result = '+result)
+            log("[  WARN  ] Unable to int() result. Result value is "+result)
+            get_updater().call_in_main(textbox.appendPlainText, ' result = '+str(result).replace('e+', ' * 10^'))
     else:
-        log("[ WARN ] X, Y, Z, A, B or C NOT detected.")
+        log("[  WARN  ] X, Y, Z, A, B or C NOT detected.")
         try:
             result = int(result)
-            get_updater().call_in_main(textbox.appendPlainText, ' = '+f"{result:,}")
+            get_updater().call_in_main(textbox.appendPlainText, ' = '+f"{result:,}".replace('e+', ' * 10^'))
         except:
-            log("[ WARN ] Unable to int() result.")
-            get_updater().call_in_main(textbox.appendPlainText, ' = '+result)
+            log("[  WARN  ] Unable to int() result.")
+            get_updater().call_in_main(textbox.appendPlainText, ' = '+str(result).replace('e+', ' * 10^'))
     get_updater().call_in_main(textbox.moveCursor, QtGui.QTextCursor.End)
     enableAll()
 
@@ -436,7 +459,7 @@ def pure_calculate(s):
     try:
         result = str(eval(str(s)))
     except OverflowError:
-        result = "Well, even the Windows calculator doesn't know that...\ud83c\udf1a\n\nThis error is caused because the result was supposed to be a huuuge number with decimals, but it was that big that it overflowed the system. Try to simplify your operation, and avoid divisions if you can.  "
+        result = "Well, even the Windows calculator doesn't know that...\ud83c\udf1a\n\nThis error is caused because the result was supposed to be a huuuge number with decimals, but it was that big that it overflowed the system.  "
     except SyntaxError:
         result = "Syntax Error! Please check your operation and try again:  "
     except ZeroDivisionError:
@@ -695,43 +718,43 @@ def show_popup():
     resizeWidgets()
 
 def quitCalc():
-    log("[ INFO ] Quitting application...")
+    log("[  INFO  ] Quitting application...")
     global calc
     calc.close()
 
 def minimizeCalc():
-    log("[ INFO ] Minimizing application...")
+    log("[  INFO  ] Minimizing application...")
     global calc
     calc.showMinimized()
 
 def maximizeCalc(side='center'):
     global maximize, calc, _platform, needResize
-    log("[  OK  ] Starting maximizeCalc(), side value is '{0}'".format(side))
+    log("[   OK   ] Starting maximizeCalc(), side value is '{0}'".format(side))
     if(side=='center'):
         if(not maximize):
-            log("[ INFO ] Not maximized")
+            log("[  INFO  ] Not maximized")
             needResize=[True, calc.height(), calc.width()]
             if(_platform=="darwin"):
                 calc.showFullScreen()
-                log("[  OK  ] Fullscreening")
+                log("[   OK   ] Fullscreening")
             else:
                 calc.showMaximized()
-                log("[  OK  ] Maximizing")
+                log("[   OK   ] Maximizing")
             maximize=True
         else:
             maximize=False
             calc.showNormal()
-            log("[  OK  ] Restoring")
+            log("[   OK   ] Restoring")
     elif(side=='right'):
         if(_platform=='darwin'):
-            log("[ INFO ] Aligning to the right...")
+            log("[  INFO  ] Aligning to the right...")
             needResize=[True, calc.height(), calc.width()]
             screen = calc.screen()
             size = screen.availableGeometry()
             calc.setGeometry(0, 0, int(size.width()/2), size.height())
     elif(side=='left'):
         if(_platform=='darwin'):
-            log("[ INFO ] Aligning to the left...")
+            log("[  INFO  ] Aligning to the left...")
             needResize=[True, calc.height(), calc.width()]
             screen = calc.screen()
             size = screen.availableGeometry()
@@ -741,16 +764,25 @@ def saveHistory():
     global calc, textbox
     try:
         f = open(QtWidgets.QFileDialog.getSaveFileName(calc, 'Save the SomePythonThings Calc history', "SomePythonThings Calc History.txt", ('Text Files (*.txt);;All files (*.*)'))[0], 'w')
-        log("[  OK  ] File {0} opened successfully.".format(f.name))
-        f.write(textbox.toPlainText())
-        fname = f.name
+        log("[   OK   ] File {0} opened successfully.".format(f.name))
+        text = textbox.toPlainText()
+        for old, new in [(x_char, 'x'), (y_char, 'y'), (z_char, 'z'), (a_char, 'a'), (b_char, 'b'), (c_char, 'c'), (pi_char, 'π'), (e_char, 'e'), (fi_char, 'φ')]:
+            text = text.replace(old, new)
+        f.write(text)
+        fname = os.path.abspath(f.name)
         f.close()
         throw_info("SomePythonThings Calc", "SomePythonThings Calc History saved sucessfully to {0}".format(fname))
+        if(_platform=='win32'):
+            p = subprocess.Popen('start /B notepad.exe "'+fname.replace('\\', '/')+'"', shell=True)
+        else:
+            p = subprocess.Popen('open "'+fname.replace('\\', '/')+'"', shell=True)
     except Exception as e:
+        if(debugging):
+            raise e
         if (not str(e)=="[Errno 2] No such file or directory: ''"):
             throw_error("SomePythonThings Calc", "Unable to save SomePythonThings Calc History.\n\nError Reason: {0}".format(e))
         else:
-            log("[ WARN ] User cancelled the dialog")
+            log("[  WARN  ] User cancelled the dialog")
 
 def checkDirectUpdates():
     global actualVersion
@@ -762,6 +794,10 @@ def checkDirectUpdates():
 
 def openHelp():
     webbrowser.open_new("http://www.somepythonthings.tk/programs/somepythonthings-calc/help/")
+
+def reinstallCalc():
+    log('[        ] starting reinstall process...')
+    Thread(target=checkUpdates, args=("True",), daemon=True).start()
 
 def showOnTop():
     global showOnTopEnabled, title, calc, topAction
@@ -781,7 +817,7 @@ def showOnTop():
             title.setText(calc.windowTitle())
             title.setGeometry(170, 1, calc.width()-292, 28)
             title.show()
-        log("[  OK  ] Re-showing Window...")
+        log("[   OK   ] Re-showing Window...")
         calc.show()
         resizeWidgets()
     else:
@@ -792,27 +828,27 @@ def showOnTop():
             flags = QtCore.Qt.WindowFlags()
         calc.setWindowFlags(flags)
         topAction.setCheckable(True)
-        log("[  OK  ] Re-showing Window...")
+        log("[   OK   ] Re-showing Window...")
         calc.hide()
         calc.show()
         resizeWidgets()
 
 def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
-    log("[ INFO ] Starting resizeWidgets()")
+    log("[  INFO  ] Starting resizeWidgets()")
     global a_char, b_char, c_char, z_char, title, grips, x_char, y_char, e_char, pi_char,  buttons, popup, textbox, calc
     if(not(resizeWindow)):
         winHeight = calc.height()
         winWidth = calc.width()
     else:
         calc.resize(winWidth, winHeight)
-    log("[  OK  ] Window size is {0}*{1}px".format(winHeight, winWidth))
+    log("[   OK   ] Window size is {0}*{1}px".format(winHeight, winWidth))
     buttons['POPUP'].show()
-    if(winWidth<1100):
+    if(winWidth<=1099):
         fullWinWidth = winWidth
-        big_width = int(25/100*winWidth)
-        tiny_width = int(12.5/100*winWidth)
-        small_width = int(17/100*winWidth)
-        height = int(14/100*winHeight+1)
+        big_width = int(25/100*winWidth)+1
+        tiny_width = int(12.5/100*winWidth)+1
+        small_width = int(17/100*winWidth)+1
+        height = int(14/100*winHeight+1)+1
         first_row = int(30/100*winHeight)
         second_row= int((30+14)/100*winHeight)
         third_row= int((30+14*2)/100*winHeight)
@@ -832,10 +868,10 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
     else:
         fullWinWidth = winWidth
         winWidth = winWidth*0.75
-        big_width = int(25/100*winWidth)
-        tiny_width = int(12.5/100*winWidth)
-        small_width = int(17/100*winWidth)
-        height = int(14/100*winHeight+1)
+        big_width = int(25/100*winWidth)+1
+        tiny_width = int(12.5/100*winWidth)+1
+        small_width = int(17/100*winWidth)+1
+        height = int(14/100*winHeight+1)+1
         first_row = int(30/100*winHeight)
         second_row= int((30+14)/100*winHeight)
         third_row= int((30+14*2)/100*winHeight)
@@ -852,7 +888,7 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
         small_5th_column = int((16.6666*3)/100*winWidth)
         small_6th_column = int((16.6666*4)/100*winWidth)
         small_7th_column = int((16.6666*5)/100*winWidth)
-    textbox.resize(fullWinWidth-4 ,int((winHeight/100*30)-28))
+    textbox.resize(fullWinWidth ,int((winHeight/100*30)-29))
     if(_platform=='darwin'):
         grips['bottom-right'].setGeometry(int(calc.width()/2)+1, int(calc.height()-2), int(calc.width()/2)+1, 2)
         grips['right-bottom'].setGeometry(int(calc.width())-2, int(calc.height()/2)+1, 2, int(calc.height()/2)+1)
@@ -864,25 +900,25 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
         grips['left-top'].setGeometry(0, 0, 2, int(calc.height()/2)+1)
     if(int(20/900*fullWinWidth)<int(20/500*winHeight)):
         fontsize = str(int(20/900*fullWinWidth))
-        log("[  OK  ] Width > Height, font size is {0}".format(fontsize))
+        log("[   OK   ] Width > Height, font size is {0}".format(fontsize))
     else:
         fontsize = str(int(20/500*winHeight))
-        log("[  OK  ] Width < Height, font size is {0}".format(fontsize))
+        log("[   OK   ] Width < Height, font size is {0}".format(fontsize))
     if(int(fontsize)<18):
-        log("[  OK  ] Font size under 18, setting 18 value")
+        log("[   OK   ] Font size under 18, setting 18 value")
         buttons['CA'].setText('CA')
         buttons['CO'].setText('C')
         buttons['Del'].setText('Del')
-        log("[  OK  ] Changing Ca, C and Del text to minified label")
+        log("[   OK   ] Changing Ca, C and Del text to minified label")
         fontsize="18"
     else:
         buttons['CA'].setText('Clear All')
         buttons['CO'].setText('Clear')
         buttons['Del'].setText('Delete')
-        log("[  OK  ] Changing Ca, C and Del text to full label")
+        log("[   OK   ] Changing Ca, C and Del text to full label")
     if(int(fontsize)>28):
-        log("[  OK  ] Font size over 28, setting 28 value")
-        fontsize="28"  
+        log("[   OK   ] Font size over 28, setting 28 value")
+        fontsize="28"
     buttons['0'].move(big_2nd_column, fifth_row)
     buttons['0'].resize(big_width, height) #Resize button
     buttons['1'].move(big_1st_column, fourth_row)
@@ -949,9 +985,25 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
                 font-weight: bold;
                 border-radius: 0px; 
             }
+            
+            #top-left{
+                border-top-left-radius: 3px;
+                }
+            #top-right{
+                border-top-right-radius: 3px;
+                }
+            #bottom-left{
+                border-bottom-left-radius: 3px;
+                }
+            #bottom-right{
+                border-bottom-right-radius: 3px;
+            }
+            #equal {
+                border-top-left-radius: 3px;
+            }
             QPushButton::hover
             {
-                background-color: #111111;
+                background-color: #222222;
             }
             """)
             buttons['POPUP'].move(winWidth-26, int(winHeight/2)-25)
@@ -996,9 +1048,21 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
                 font-weight: bold;
                 border-radius: 0px;
             }
+        #top-left{
+            border-top-left-radius: 3px;
+            }
+        #top-right{
+            border-top-right-radius: 3px;
+            }
+        #bottom-left{
+            border-bottom-left-radius: 3px;
+            }
+        #bottom-right{
+            border-bottom-right-radius: 3px;
+            }
             QPushButton::hover
             {
-                background-color: #111111;
+                background-color: #222222;
             }
             """)
             buttons["="]
@@ -1045,9 +1109,22 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
                 font-weight: bold;
                 border-radius: 0px;
             }
+            
+        #top-left{
+            border-top-left-radius: 3px;
+            }
+        #top-right{
+            border-top-right-radius: 3px;
+            }
+        #bottom-left{
+            border-bottom-left-radius: 3px;
+            }
+        #bottom-right{
+            border-bottom-right-radius: 3px;
+            }
             QPushButton::hover
             {
-                background-color: #111111;
+                background-color: #222222;
             }
             """)
         buttons["="]
@@ -1057,29 +1134,29 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
         pHeight = int((winHeight*0.7)/6)
         buttons['POPUP'].move(pX-pWidth-25, int(winHeight/2)-25)
         buttons["X"].move(pX+pWidth, pY)
-        buttons["X"].resize(pWidth, pHeight+1)
+        buttons["X"].resize(pWidth+5, pHeight+5)
         buttons["Y"].move(pX+pWidth, pY+pHeight)
-        buttons["Y"].resize(pWidth, pHeight+1)
+        buttons["Y"].resize(pWidth+5, pHeight+5)
         buttons["Z"].move(pX+pWidth, pY+pHeight*2)
-        buttons["Z"].resize(pWidth, pHeight+1)
+        buttons["Z"].resize(pWidth+5, pHeight+5)
         buttons["A"].move(pX+pWidth, pY+pHeight*3)
-        buttons["A"].resize(pWidth, pHeight+1)
+        buttons["A"].resize(pWidth+5, pHeight+5)
         buttons["B"].move(pX+pWidth, pY+pHeight*4)
-        buttons["B"].resize(pWidth, pHeight+1)
+        buttons["B"].resize(pWidth+5, pHeight+5)
         buttons["C"].move(pX+pWidth, pY+pHeight*5)
-        buttons["C"].resize(pWidth, pHeight+1)
+        buttons["C"].resize(pWidth+5, pHeight+5)
         buttons["PI"].move(pX, pY)
-        buttons["PI"].resize(pWidth, pHeight+1)
+        buttons["PI"].resize(pWidth+5, pHeight+5)
         buttons["E"].move(pX, pY+pHeight)
-        buttons["E"].resize(pWidth, pHeight+1)
+        buttons["E"].resize(pWidth+5, pHeight+5)
         buttons["GOLDEN-RATIO"].move(pX, pY+pHeight*2)
-        buttons["GOLDEN-RATIO"].resize(pWidth, pHeight+1)
+        buttons["GOLDEN-RATIO"].resize(pWidth+5, pHeight+5)
         buttons["ANS"].move(pX, pY+pHeight*3)
-        buttons["ANS"].resize(pWidth, pHeight+1)
+        buttons["ANS"].resize(pWidth+5, pHeight+5)
         buttons["EDIT"].move(pX, pY+pHeight*4)
-        buttons["EDIT"].resize(pWidth, pHeight+1)
+        buttons["EDIT"].resize(pWidth+5, pHeight+5)
         buttons["PASTE"].move(pX, pY+pHeight*5)
-        buttons["PASTE"].resize(pWidth, pHeight+1)
+        buttons["PASTE"].resize(pWidth+5, pHeight+5)
         buttons['POPUP'].hide()
     if(_platform=='darwin'):
         title.setGeometry(175, 2, fullWinWidth-295, 26)
@@ -1134,22 +1211,37 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
             """)
     for button in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '(', ')', '^(', '√']: #Grey (#333333)
         buttons[button].setStyleSheet("""
-        QPushButton
-        {
-            border: none;
-            background-color: #333333;
-            font-size:"""+fontsize+"""px;
-            color: #DDDDDD;
-            font-family: \""""+font+"""\", monospace;
-            font-weight: bold;
-            width: 25%;
-            border-radius: 0px;
-        }
-        QPushButton::hover
-        {
-            background-color: #111111;
-        }
-        """)
+            QPushButton
+            {
+                border: none;
+                background-color: #333333;
+                font-size:"""+fontsize+"""px;
+                color: #DDDDDD;
+                font-family: \""""+font+"""\", monospace;
+                font-weight: bold;
+                width: 25%;
+                border-radius: 0px;
+            }
+            
+
+            
+            #top-left{
+                border-top-left-radius: 3px;
+                }
+            #top-right{
+                border-top-right-radius: 3px;
+                }
+            #bottom-left{
+                border-bottom-left-radius: 3px;
+                }
+            #bottom-right{
+                border-bottom-right-radius: 3px;
+                }
+            QPushButton::hover
+            {
+                background-color: #222222;
+            }
+            """)
     for button in ['.', '+', '-', '*', '/']:# blue grey (#49525C)
         buttons[button].setStyleSheet("""
         QPushButton
@@ -1162,9 +1254,24 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
             font-weight: bold; 
             border-radius: 0px;
         }
+        
+
+        
+        #top-left{
+            border-top-left-radius: 3px;
+            }
+        #top-right{
+            border-top-right-radius: 3px;
+            }
+        #bottom-left{
+            border-bottom-left-radius: 3px;
+            }
+        #bottom-right{
+            border-bottom-right-radius: 3px;
+            }
         QPushButton::hover
         {
-            background-color: #111111;
+            background-color: #222222;
         }
         """)
     for button in ['Del', 'CO', 'CA']:#Dark Grey (#222222)
@@ -1178,7 +1285,22 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
             font-family: \""""+font+"""\", monospace;
             font-weight: bold;
             border-radius: 0px; 
-        }  
+        }
+        
+
+        
+        #top-left{
+            border-top-left-radius: 3px;
+            }
+        #top-right{
+            border-top-right-radius: 3px;
+            }
+        #bottom-left{
+            border-bottom-left-radius: 3px;
+            }
+        #bottom-right{
+            border-bottom-right-radius: 3px;
+            }
         QPushButton::hover
         {
             background-color: #111111;
@@ -1196,10 +1318,25 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
             font-weight: bold;
             border-radius: 0px; 
         }  
+        
+
+        
+        #top-left{
+            border-top-left-radius: 3px;
+            }
+        #top-right{
+            border-top-right-radius: 3px;
+            }
+        #bottom-left{
+            border-bottom-left-radius: 3px;
+            }
+        #bottom-right{
+            border-bottom-right-radius: 3px;
+            }
         QPushButton::hover
         {
             color: #DDDDDD;
-            background-color: #161616;
+            background-color: #222222;
         }
         """)
     textbox.setStyleSheet("""
@@ -1225,7 +1362,7 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
         }
         QPushButton::hover
         {
-            background-color: "#111111";
+            background-color: "#222222";
         }
         """)
 
@@ -1237,8 +1374,8 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
 class Window(QtWidgets.QMainWindow):
-    resized = QtCore.pyqtSignal()
-    keyRelease = QtCore.pyqtSignal(int)
+    resized = QtCore.Signal()
+    keyRelease = QtCore.Signal(int)
     def  __init__(self, parent=None):
         super(Window, self).__init__(parent=parent)
         ui = Ui_MainWindow()
@@ -1246,6 +1383,10 @@ class Window(QtWidgets.QMainWindow):
         self.resized.connect(resizeWidgets)
         self.oldPos = self.pos()
         self.canMove=False
+        self.widget = QtWidgets.QWidget(self)
+        self.widget.setObjectName('app')
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.addWidget(self.widget)
 
     def resizeEvent(self, event):
         self.resized.emit()
@@ -1290,9 +1431,9 @@ if(__name__=="__main__"):
     if(len(sys.argv)>1):
         if('debug' in sys.argv[1]):
             debugging=True
-    log("[      ] Welcome to SomePythonThings Calc {0} log. debugging is set to {1}".format(actualVersion, debugging))
+    log("[        ] Welcome to SomePythonThings Calc {0} log. debugging is set to {1}".format(actualVersion, debugging))
     if _platform == "linux" or _platform == "linux2":
-        log("[  OK  ] Platform is linux")
+        log("[   OK   ] Platform is linux")
         os.chdir("/bin/")
         font = "Ubuntu Mono"
         x_char = "x"
@@ -1310,7 +1451,7 @@ if(__name__=="__main__"):
         minimize_icon = "-"
         realpath = "/bin"
     elif _platform == "darwin":
-        log("[  OK  ] Platform is macOS")
+        log("[   OK   ] Platform is macOS")
         font = "Courier"
         x_char = "x"
         y_char = "y"
@@ -1318,7 +1459,7 @@ if(__name__=="__main__"):
         a_char = "a"
         b_char = "b"
         c_char = "c"
-        e_char = "e"
+        e_char = "π"
         pi_char = "π"
         fi_char = "φ"
         sqr_char="√"
@@ -1327,19 +1468,19 @@ if(__name__=="__main__"):
         minimize_icon = "-"
         realpath = "/Applications/SomePythonThings Calc.app/Contents/Resources"
     elif _platform == "win32":
-        log("[  OK  ] Platform is windows")
+        log("[   OK   ] Platform is windows")
         if int(platform.release()) >= 10: #Font check: os is windows 10
             font = "Cascadia Mono"#"Cascadia Mono"
-            log("[  OK  ] OS detected is win32 release 10 ")
+            log("[   OK   ] OS detected is win32 release 10 ")
         else:# os is windows 7/8
             font="Consolas"#"Consolas"
-            log("[  OK  ] OS detected is win32 release 8 or less ")
+            log("[   OK   ] OS detected is win32 release 8 or less ")
         if(os.path.exists("\\Program Files\\SomePythonThingsCalc\\resources-sptmusic")):
             realpath = "/Program Files/SomePythonThingsCalc/resources-sptmusic"
-            log("[  OK  ] Directory set to /Program Files/SomePythonThingsCalc/resources-sptmusic")
+            log("[   OK   ] Directory set to /Program Files/SomePythonThingsCalc/resources-sptmusic")
         else:
             realpath = os.path.dirname(os.path.realpath(__file__)).replace('\\', '/')
-            log("[ WARN ] Directory /Program Files/SomePythonThingsCalc/ not found, getting working directory...")
+            log("[  WARN  ] Directory /Program Files/SomePythonThingsCalc/ not found, getting working directory...")
         x_char = "𝑥"
         y_char = "𝑦"
         z_char = "𝑧"
@@ -1370,7 +1511,7 @@ if(__name__=="__main__"):
         maximize_icon = "□"
         minimize_icon = "-"
         realpath='.'
-    resized = QtCore.pyqtSignal()
+    resized = QtCore.Signal()
     QtWidgets.QApplication.setStyle('Fusion')
     app = QtWidgets.QApplication(argv)
     app.setStyle('Fusion')
@@ -1385,6 +1526,11 @@ if(__name__=="__main__"):
             font-weight: bold; 
             font-size:15px;
         }
+        #app
+        {
+            border-radius: 500px;
+        }
+
         QSizeGrip{
             background-color: #333333;
         }
@@ -1413,10 +1559,66 @@ if(__name__=="__main__"):
         QPushButton {
             border: none;
             height: 30px;
-            width: 80px;
-            background-color:#111111;
+            width: 100px;
             border-radius: 3px;
+            background-color:#222222;
         }
+        QPushButton:hover {
+            border: none;
+            height: 30px;
+            width: 100px;
+            background-color:#111111;
+        }
+
+        QScrollBar
+        {
+            background-color: #222222;
+        }
+
+        QScrollBar:vertical
+        {
+            background-color: #222222;
+        }
+
+        QScrollBar::handle:vertical 
+        {
+            margin-top: px;
+            margin-bottom: 0px;
+            border: none;
+            min-height: 30px;
+            background-color: #333333;
+        }
+
+        QScrollBar::add-line:vertical 
+        {
+            border: none;
+            background-color: #333333;
+            height: 0px;
+        }
+
+        QScrollBar::sub-line:vertical 
+        {
+            border: none;
+            background-color: #333333;
+            height: 0px;
+        }
+
+        #top-left{
+            border-top-left-radius: 3px;
+            }
+        #top-right{
+            border-top-right-radius: 3px;
+            }
+        #all-right{
+            border-radius: 3px;
+            }
+        #bottom-left{
+            border-bottom-left-radius: 3px;
+            }
+        #bottom-right{
+            border-bottom-right-radius: 3px;
+            }
+
     ''')
     try:
         calc.setWindowIcon(QtGui.QIcon(realpath+"/calc-icon.png"))
@@ -1427,6 +1629,11 @@ if(__name__=="__main__"):
         buttons[number].setText(str(number))
         buttons[number].move(1, 1)
         buttons[number].clicked.connect(partial(print_number, str(number)))
+    buttons['='] = QtWidgets.QPushButton(calc) # "=" button
+    buttons['='].setText('=')
+    buttons['='].setObjectName('top-left')
+    buttons['='].move(1, 1)
+    buttons['='].clicked.connect(calculate)
     for operation in ['*', '/', '+', '-', '^(', '√']:
         buttons[operation] = QtWidgets.QPushButton(calc) # operation button
         buttons[operation].setText(str(operation))
@@ -1440,13 +1647,11 @@ if(__name__=="__main__"):
     buttons['.'] = QtWidgets.QPushButton(calc) # Dot button
     buttons['.'].setText('.')
     buttons['.'].move(1, 1)
+    buttons['.'].setObjectName('top-right')
     buttons['.'].clicked.connect(dot)
-    buttons['='] = QtWidgets.QPushButton(calc) # "=" button
-    buttons['='].setText('=')
-    buttons['='].move(1, 1)
-    buttons['='].clicked.connect(calculate)
     buttons['Del'] = QtWidgets.QPushButton(calc) # Backspace button (clear one charartcer)
     buttons['Del'].setText('Delete')
+    buttons['Del'].setObjectName('bottom-left')
     buttons['Del'].move(1, 1)
     buttons['Del'].clicked.connect(delete)
     buttons['CO'] = QtWidgets.QPushButton(calc) # Clear Operation (CO)
@@ -1462,11 +1667,13 @@ if(__name__=="__main__"):
     buttons['POPUP'].move(1, 1)
     buttons['POPUP'].clicked.connect(show_popup)
     textbox =  QtWidgets.QPlainTextEdit(calc)
-    textbox.move(2, 28)
+    textbox.move(0, 29)
     textbox.setWindowOpacity(0.5)
     textbox.setReadOnly(True)
+    textbox.setPlainText('')
     buttons['PI'] = QtWidgets.QPushButton(calc)
     buttons['PI'].setText(pi_char)
+    buttons['PI'].setObjectName('top-left')
     buttons['PI'].move(1, 1)
     buttons['PI'].clicked.connect(partial(print_symbol_and_close, pi_char))
     buttons['E'] = QtWidgets.QPushButton(calc)
@@ -1483,6 +1690,7 @@ if(__name__=="__main__"):
     buttons['GOLDEN-RATIO'].clicked.connect(partial(print_symbol_and_close, fi_char))
     buttons['PASTE'] = QtWidgets.QPushButton(calc)
     buttons['PASTE'].setText("Paste Custom\nOperation")
+    buttons['PASTE'].setObjectName("bottom-left")
     buttons['PASTE'].move(1, 1)
     buttons['PASTE'].clicked.connect(pasteOperation)
     buttons['EDIT'] = QtWidgets.QPushButton(calc)
@@ -1530,10 +1738,13 @@ if(__name__=="__main__"):
     aboutAction.setShortcut("")
     updatesAction = QtWidgets.QAction(" Check for updates", calc)
     updatesAction.setShortcut("")
+    reinstallAction = QtWidgets.QAction("   Re-install SomePythonThings Calc", calc)
+    reinstallAction.setShortcut("")
     updatesAction.triggered.connect(checkDirectUpdates)
     quitAction.triggered.connect(quitCalc)
+    reinstallAction.triggered.connect(reinstallCalc)
     saveAction.triggered.connect(saveHistory)
-    aboutAction.triggered.connect(partial(throw_info, "About SomePythonThings Calc", "SomePythonThings Calc\nVersion "+str(actualVersion)+"\n\nThe SomePythonThings Project\n\n © 2020 SomePythonThings\nhttps://www.somepythonthings.tk"))
+    aboutAction.triggered.connect(partial(throw_info, "About SomePythonThings Calc", "SomePythonThings Calc\nVersion "+str(actualVersion)+"\n\nThe SomePythonThings Project\n\n © 2020 Martí Climent, SomePythonThings\nhttps://www.somepythonthings.tk\n\n\nThe iconset has a CC Non-Commercial Atribution 4.0 License"))
     openHelpAction.triggered.connect(openHelp)
     topAction.triggered.connect(showOnTop)
     fileMenu.addAction(saveAction)
@@ -1542,6 +1753,7 @@ if(__name__=="__main__"):
     helpMenu.addAction(updatesAction)
     helpMenu.addAction(aboutAction)
     settingsMenu.addAction(topAction)
+    settingsMenu.addAction(reinstallAction)
     sizeMenu = settingsMenu.addMenu("   Resize")
     minResize = QtWidgets.QAction(" Mini", calc)
     smallResize = QtWidgets.QAction(" Small", calc)
@@ -1563,6 +1775,7 @@ if(__name__=="__main__"):
     sizeMenu.addAction(giantResize)
     if(_platform=='darwin'):
         buttons['exit'] = QtWidgets.QPushButton(calc)
+        buttons['exit'].setObjectName("all-right")
         buttons['exit'].setText(close_icon)
         buttons['exit'].move(1, 1)
         buttons['exit'].clicked.connect(quitCalc)
@@ -1598,17 +1811,49 @@ if(__name__=="__main__"):
         grips['top-left'].setGeometry(0, 0, int(calc.width()/2), 2)
         grips['left-top'] = QtWidgets.QSizeGrip(calc)
         grips['left-top'].setGeometry(0, 0, 2, int(calc.height()/2))
-        # grips['left-top'].setVisible(True)
         flags = QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint)
         calc.setWindowFlags(flags)
+    for button in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '(', ')', '^(', '√']: #Grey (#333333)
+        buttons[button].setStyleSheet("""
+            QPushButton
+            {
+                border: none;
+                background-color: #333333;
+                color: #DDDDDD;
+                width: 25%;
+                border-radius: 0px;
+            }
+            
+
+            
+            #top-left{
+                border-top-left-radius: 3px;
+                }
+            #top-right{
+                border-top-right-radius: 3px;
+                }
+            #bottom-left{
+                border-bottom-left-radius: 3px;
+                }
+            #bottom-right{
+                border-bottom-right-radius: 3px;
+                }
+            QPushButton::hover
+            {
+                background-color: #222222;
+            }
+            """)
     resizeWidgets()
     calc.setMinimumSize(210, 250)
+    print_number(3)
+    print_symbol(x_char)
+    clear_all()
     calc.show()
     t = Thread(target=checkUpdates)
     t.daemon = True
     t.start()
     app.exec_()
-    log("[ EXIT ] Reached end of the script")
+    log("[  EXIT  ] Reached end of the script")
     if(debugging):
         input("Press any key to continue...")
     sys.exit()
