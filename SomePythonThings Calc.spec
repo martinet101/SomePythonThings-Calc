@@ -4,13 +4,13 @@ block_cipher = None
 
 
 a = Analysis(['SomePythonThings Calc.py'],
-             pathex=['/Users/marticlilop/SPTPrograms/_Calc with PyQt5'],
+             pathex=['E:\\Users\\Martí Climent\\SPTPrograms\\_Calc with PySide2'],
              binaries=[],
-             datas=[],
+             datas=[('calc-icon.png', '.'), ('ok.png', '.'), ('./warn.png', '.'), ('./error.png', '.')],
              hiddenimports=[],
              hookspath=[],
              runtime_hooks=[],
-             excludes=[],
+             excludes=['tkinter', 'PyQt5'],
              win_no_prefer_redirects=False,
              win_private_assemblies=False,
              cipher=block_cipher,
@@ -26,7 +26,7 @@ exe = EXE(pyz,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
-          console=False , icon='macOSicon.icns')
+          console=False , icon='icon.ico')
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
@@ -35,7 +35,3 @@ coll = COLLECT(exe,
                upx=True,
                upx_exclude=[],
                name='SomePythonThings Calc')
-app = BUNDLE(coll,
-             name='SomePythonThings Calc.app',
-             icon='./macOSicon.icns',
-             bundle_identifier=None)

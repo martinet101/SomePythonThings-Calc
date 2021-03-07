@@ -1,20 +1,14 @@
 #Modules
 import os
-
-os.environ["QT_MAC_WANTS_LAYER"] = "1"
-
 import sys
 import time
-import math
 import wget
-import json
 import tempfile
-import platform
 import traceback
+import platform
 import subprocess
-import darkdetect
 import webbrowser
-from ast import literal_eval
+from sys import argv
 from sys import platform as _platform
 from PySide2 import QtWidgets, QtGui, QtCore
 from functools import partial
@@ -23,7 +17,7 @@ from urllib.request import urlopen
 from qt_thread_updater import get_updater
 
 #Globals definition
-debugging = False
+debugging=False
 actualVersion = 3.8
 
 popup=False
@@ -44,7 +38,6 @@ showOnTopEnabled = False
 operationAvailable = False
 
 result = 0
-fontsize = 14
 x_prev_value = 0
 y_prev_value = 0
 z_prev_value = 0
@@ -56,540 +49,22 @@ bracketsToClose = 0
 calcHistory = ''
 previousResult = ''
 currentOperation = ''
-angleUnit = 'degree'
-
 
 needResize=[False, 900, 500]
 
 tempDir = tempfile.TemporaryDirectory()
 
-
-
-defaultSettings = {
-    "settings_version": actualVersion,
-    "angleUnit": 'degree',
-    "mode":'auto',
-}
-
-settings = defaultSettings.copy() # Default settings loaded, those which change will be overwritten
-
-
-lightStyleSheet ="""
-     * {{
-        color: #222222;
-        background-color: #EEEEEE;
-        font-size: 12px;
-    }}
-    
-    QMenuBar
-    {{
-        background-color: #EEEEEE;
-        color: #222222;
-    }}
-    QMenu 
-    {{
-        background-color: #EEEEEE;
-        border-radius: 10px;
-    }}
-    QMenu::item 
-    {{
-        border: 3px solid #EEEEEE;
-        padding-right: 10px;
-        padding-left: 5px;
-        padding: 3px;
-        color: #222222;
-        padding-left: 8px;
-    }}
-    QMenu::item:selected 
-    {{
-        border: 3px solid #3dbaa8;
-        background-color: #3dbaa8;
-    }}
-    QMenuBar::item 
-    {{
-        background-color: #EEEEEE;
-        border: 3px solid  #EEEEEE;
-        padding-right: 5px;
-        padding-left: 5px;
-    }}
-    QMenuBar::item:default 
-    {{
-        background-color: #3dbaa8;
-        border: 3px solid  #3dbaa8;
-    }}
-    QMenuBar::item:selected 
-    {{
-        background-color: #3dbaa8;
-        border: 3px solid  #3dbaa8;
-    }}
-    QSizeGrip
-    {{
-        background-color: #EEEEEE;
-    }}
-    QScrollBar:vertical
-    {{
-        background-color: #EEEEEE;
-        border:none;
-    }}
-    QPushButton
-    {{
-        border: none;
-        height: 30px;
-        width: 100px;
-        border-radius: 3px;
-        background-color: #3dbaa8;
-    }}
-    QPushButton:hover
-    {{
-        border: none;
-        height: 30px;
-        width: 100px;
-        background-color: #3dbaa8;
-        border-radius: 3px;
-    }}
-    QScrollBar
-    {{
-        background-color: #FFFFFF;
-    }}
-    QScrollBar:vertical
-    {{
-        background-color: #FFFFFF;
-    }}
-    QScrollBar::handle:vertical 
-    {{
-        margin-top: 0px;
-        margin-bottom: 0px;
-        border: none;
-        min-height: 30px;
-        border-top-left-radius: 3px;
-        border-bottom-left-radius: 3px;
-        background-color: #EEEEEE;
-    }}
-    QScrollBar::add-line:vertical 
-    {{
-        border: none;
-        background-color: #EEEEEE;
-        height: 0px;
-    }}
-    QScrollBar::sub-line:vertical 
-    {{
-        border: none;
-        background-color: #EEEEEE;
-        height: 0px;
-    }}
-    QPlainTextEdit
-    {{
-        selection-background-color: #3dbaa8;
-        selection-color: white;
-        border:none; 
-        background-color: #FFFFFF; 
-        font-size:{0}px;
-        font-weight: light;
-        color: #222222; 
-        font-family: "{1}";
-        padding-bottom: 5px;
-    }}
-    QLineEdit{{
-        border: none;
-        background-color: #FFFFFF;
-        border-radius: 3px;
-        padding: 5px;
-        margin: 5px;
-    }}
-    #regularButton {{
-        border: none;
-        background-color: #EEEEEE;
-        color: #222222;
-        font-weight: light;
-        font-size:{0}px; 
-        font-family: "{1}", monospace;
-        border-radius: 0px;
-    }}
-    
-    #regularButton::hover
-    {{
-        background-color: #FFFFFF;
-        border-radius: 3px;
-    }}
-    #equalNormal {{
-        border: none; 
-        background-color: #3dbaa8; 
-        font-size:{0}px; 
-        font-weight: light;
-        color: #222222; 
-        font-family: "{1}";
-        border-radius: 0px; 
-    }}
-    #equalNormal::hover
-    {{
-        background-color: #FFFFFF;
-        border-radius: 3px;
-        color: #3dbaa8; 
-    }}
-    #equalLight {{
-        border: none; 
-        background-color: #FFFFFF; 
-        font-size:{0}px; 
-        font-weight: light;
-        color: #3dbaa8; 
-        font-family: "{1}";
-        border-radius: 0px; 
-    }}
-    #equalLight::hover
-    {{
-        background-color: #FFFFFF;
-        border-radius: 3px;
-    }}
-    #operationButton{{
-        border: none; 
-        background-color: #7f8fa1; 
-        font-size:{0}px;
-        color: black;
-        font-family: "{1}";
-        font-weight: light;
-        border-radius: 0px;
-    }}
-    #operationButton::hover
-    {{
-        background-color: #FFFFFF;
-        color: black;
-        border-radius: 3px;
-    }}
-    #darkButton{{
-        border: none; 
-        background-color: #FFFFFF; 
-        font-size:{0}px; 
-        font-weight: light;
-        color: #222222; 
-        font-family: "{1}";
-        border-radius: 0px;
-    }}
-    #darkButton::hover
-    {{
-        background-color: #FFFFFF;
-        border-radius: 3px;
-    }}
-    #popupButton{{
-        font-size:{0}px; 
-        font-family: "{1}";
-        font-weight: light;
-        color: #FFFFFF;
-        background-color: #3dbaa8; 
-        border-radius: 3px;
-    }}
-    #popupButton::hover{{
-        background-color: #FFFFFF;
-        color: #3dbaa8; 
-    }}
-    QComboBox{{
-        selection-background-color: #3dbaa8;
-        margin:0px;
-        border: 0px;
-        background-color: #FFFFFF;
-        border-radius: 3px;
-        padding-left: 7px;
-    }}
-    QMenuBar::item:default {{
-        background-color: #3dbaa8;
-    }}
-
-"""
-
-
-darkStyleSheet = """
-    * {{
-        color: #dddddd;
-        background-color: #333333;
-        font-size: 12px;
-    }}
-    
-    QMenuBar
-    {{
-        background-color: #333333;
-        color: #EEEEEE;;
-    }}
-    QMenu 
-    {{
-        background-color: #333333;
-        border-radius: 10px;
-    }}
-    QMenu::item 
-    {{
-        border: 3px solid #333333;
-        padding-right: 10px;
-        padding-left: 5px;
-        padding: 3px;
-        color: #EEEEEE;;
-        padding-left: 8px;
-    }}
-    QMenu::item:selected 
-    {{
-        border: 3px solid #33998a;
-        background-color: #33998a;
-    }}
-    QMenuBar::item 
-    {{
-        background-color: #333333;
-        border: 3px solid  #333333;
-        padding-right: 5px;
-        padding-left: 5px;
-    }}
-    QMenuBar::item:default 
-    {{
-        background-color: #33998a;
-        border: 3px solid  #33998a;
-    }}
-    QMenuBar::item:selected 
-    {{
-        background-color: #33998a;
-        border: 3px solid  #33998a;
-    }}
-    QSizeGrip
-    {{
-        background-color: #333333;
-    }}
-    QScrollBar:vertical
-    {{
-        background-color: #222222;
-        border:none;
-    }}
-    QPushButton
-    {{
-        border: none;
-        height: 30px;
-        width: 100px;
-        border-radius: 3px;
-        background-color: #33998a;
-    }}
-    QPushButton:hover
-    {{
-        border: none;
-        height: 30px;
-        width: 100px;
-        background-color: #33998a;
-        border-radius: 3px;
-    }}
-    QScrollBar
-    {{
-        background-color: #222222;
-    }}
-    QScrollBar:vertical
-    {{
-        background-color: #222222;
-    }}
-    QScrollBar::handle:vertical 
-    {{
-        margin-top: 0px;
-        margin-bottom: 0px;
-        border: none;
-        min-height: 30px;
-        border-top-left-radius: 3px;
-        border-bottom-left-radius: 3px;
-        background-color: #333333;
-    }}
-    QScrollBar::add-line:vertical 
-    {{
-        border: none;
-        background-color: #333333;
-        height: 0px;
-    }}
-    QScrollBar::sub-line:vertical 
-    {{
-        border: none;
-        background-color: #333333;
-        height: 0px;
-    }}
-    QPlainTextEdit
-    {{
-        selection-background-color: #33998a;
-        selection-color: white;
-        border:none; 
-        background-color: #222222; 
-        font-size:{0}px; 
-        color: #DDDDDD; 
-        font-family: "{1}";
-        padding-bottom: 5px;
-    }}
-    QLineEdit{{
-        border: none;
-        background-color: #222222;
-        border-radius: 3px;
-        padding: 5px;
-        margin: 5px;
-    }}
-    #regularButton {{
-        border: none;
-        background-color: #333333;
-        color: #DDDDDD;
-        font-size:{0}px; 
-        font-family: "{1}", monospace;
-        border-radius: 0px;
-    }}
-    
-    #regularButton::hover
-    {{
-        background-color: #222222;
-        border-radius: 3px;
-    }}
-    #equalNormal {{
-        border: none; 
-        background-color: #33998a; 
-        font-size:{0}px; 
-        color: #DDDDDD; 
-        font-family: "{1}";
-        border-radius: 0px; 
-    }}
-    #equalNormal::hover
-    {{
-        background-color: #222222;
-        border-radius: 3px;
-        color: #33998a; 
-    }}
-    #equalLight {{
-        border: none; 
-        background-color: #222222; 
-        font-size:{0}px; 
-        color: #33998a; 
-        font-family: "{1}";
-        border-radius: 0px; 
-    }}
-    #equalLight::hover
-    {{
-        background-color: #222222;
-        border-radius: 3px;
-    }}
-    #operationButton{{
-        border: none; 
-        background-color: #49525C; 
-        font-size:{0}px; 
-        font-family: "{1}";
-        color: #DDDDDD; 
-        border-radius: 0px;
-    }}
-    #operationButton::hover
-    {{
-        background-color: #222222;
-        border-radius: 3px;
-    }}
-    #darkButton{{
-        border: none; 
-        background-color: #222222; 
-        font-size:{0}px; 
-        color: #DDDDDD; 
-        font-family: "{1}";
-        border-radius: 0px;
-    }}
-    #darkButton::hover
-    {{
-        background-color: #111111;
-        border-radius: 3px;
-    }}
-    #popupButton{{
-        font-size:{0}px; 
-        font-family: "{1}";
-        background-color: #33998a; 
-        border-radius: 3px;
-    }}
-    #popupButton::hover{{
-        background-color: #222222;
-        color: #33998a; 
-    }}
-    QComboBox{{
-        selection-background-color: #33998a;
-        margin:0px;
-        border: 0px;
-        background-color: #222222;
-        border-radius: 3px;
-        padding-left: 7px;
-    }}
-    QMenuBar::item:default {{
-        background-color: #33998a;
-    }}
-
-"""
-
-
-
-
-def getTheme():
-    if(platform.system()=="Windows"):
-        import winreg
-        if(int(platform.release())>=10):
-            access_registry = winreg.ConnectRegistry(None, winreg.HKEY_CURRENT_USER)
-            access_key = winreg.OpenKey(access_registry, r"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize")
-            readKeys = {}
-            for n in range(20):
-                try:
-                    x = winreg.EnumValue(access_key, n)
-                    readKeys[x[0]]=x[1]
-                except:
-                    pass
-            try:
-                return readKeys["AppsUseLightTheme"]
-            except:
-                return 1
-        else:
-            return 1
-    elif(platform.system()=="Darwin"):
-        return int(darkdetect.isLight())
-    else:
-        return 1
-
-def getWindowStyleSheet():
-    global settings, realpath
-    mode = 'auto'
-    try:
-        if(str(settings["mode"]).lower() in 'darklightauto'):
-            mode = str(settings['mode'])
-        else:
-            log("[  WARN  ] Mode is invalid")
-    except KeyError:
-        log("[  WARN  ] Mode key does not exist on settings")
-    if(mode=='auto' and _platform == 'linux'):
-        log('[        ] Auto mode selected and os is not macOS. Swithing to light...')
-        mode='dark'
-    if(mode=='auto'):
-        if(getTheme()==0):
-            log('[        ] Auto mode selected. Swithing to dark...')
-            mode='dark'
-        else:
-            log('[        ] Auto mode selected. Swithing to light...')
-            mode='light'
-    log('[   OK   ] mode set to '+str(mode))
-    if(mode=='light'):
-        return lightStyleSheet.format(fontsize, font)
-    else:
-        return darkStyleSheet.format(fontsize, font)
-
-
-def checkModeThread():
-    lastMode = getTheme()
-    while True:
-        if(lastMode!=getTheme()):
-            get_updater().call_in_main(calc.setStyleSheet, getWindowStyleSheet())
-            lastMode = getTheme()
-        time.sleep(0.1)
-
-
-
-
-
-
 #Essential functions
-def log(s, file=True):
+def log(s):
     global debugging
     if(debugging or "WARN" in str(s) or "FAILED" in str(s)):
         print((time.strftime('[%H:%M:%S] ', time.gmtime(time.time())))+str(s))
-    if(file):
-        try:
-            f = open(tempDir.name.replace('\\', '/')+'/log.txt', 'a+')
-            f.write("\n"+time.strftime('[%H:%M:%S]', time.gmtime(time.time())), str(s))
-            f.close()
-        except:
-            pass
-
-
-
+    try:
+        f = open(tempDir.name.replace('\\', '/')+'/log.txt', 'a+')
+        f.write("\n"+time.strftime('[%H:%M:%S] ', time.gmtime(time.time()))+str(s))
+        f.close()
+    except:
+        pass
 
 def run(s):
     process =  subprocess.run(s.split(' '), shell=True)
@@ -652,7 +127,7 @@ def download_win(url):
 
 def install_win(filename):
     try:
-        throw_info("SomePythonThings Calc Updater", "The update has been downloaded and is going to be installed.\nYou may be prompted for permissions, click YES.\nClick OK to start installation")
+        throw_info("SomePythonThings Calc Updater", "The file has been downloaded successfully and the setup will start now. When clicking OK, the application will close and a User Account Control window will appear. Click Yes on the User Account Control Pop-up asking for permissions to launch SomePythonThings-Calc-Updater.exe. Then follow the on-screen instructions.")
         run('start /B {0} /silent'.format(filename))
         get_updater().call_in_main(sys.exit)
         sys.exit()
@@ -664,10 +139,10 @@ def downloadUpdates(links):
         '[   OK   ] Reached downloadUpdates. Download links are "{0}"'.format(links))
     if _platform == 'linux' or _platform == 'linux2':  # If the OS is linux
         log("[   OK   ] platform is linux, starting auto-update...")
-        throw_info("SomePythonThings Updater", "The update is being downloaded. Please wait.")
-        get_updater().call_in_main(textbox.setPlainText, "The update is being downloaded. Please wait.")
+        throw_info("SomePythonThings Updater", "The new version is going to be downloaded and installed automatically. \nThe installation time may vary depending on your internet connection and your computer's performance, but it shouldn't exceed a few minutes.\nPlease DO NOT kill the program until the update is done, because it may corrupt the executable files.\nClick OK to start downloading.")
+        get_updater().call_in_main(textbox.setPlainText, "The installer is being downloaded. Please wait until the download process finishes. This shouldn't take more than a couple of minutes.\n\nPlease DO NOT close the application")
         time.sleep(0.07)
-        get_updater().call_in_main(textbox.setPlainText, "The update is being downloaded. Please wait.")
+        get_updater().call_in_main(textbox.setPlainText, "The installer is being downloaded. Please wait until the download process finishes. This shouldn't take more than a couple of minutes.\n\nPlease DO NOT close the application")
         time.sleep(0.07)
         p1 = os.system(
             'cd; rm somepythonthings-calc_update.deb; wget -O "somepythonthings-calc_update.deb" {0}'.format(links['debian']))
@@ -710,7 +185,7 @@ def downloadUpdates(links):
         else:  # is os is not 64bits
             url = (links['win32'])
         log(url)
-        get_updater().call_in_main(throw_info, "SomePythonThings Update", "The update is being downloaded. Please wait.")
+        get_updater().call_in_main(throw_info, "SomePythonThings Update", "The new version is going to be downloaded and prepared for the installation. \nThe download time may vary depending on your internet connection and your computer's performance, but it shouldn't exceed a few minutes.\nClick OK to continue.")
         t = Thread(target=download_win, args=(url,))
         t.start()
         #throw_info("SomePythonThings Calc Updater","The update is being downloaded and the installer is going to be launched at the end. Please, don't quit the application until the process finishes.")
@@ -719,14 +194,15 @@ def downloadUpdates(links):
         t = Thread(target=download_macOS, args=(links,))
         t.start()
     else:  # If os is unknown
-        webbrowser.open_new('http://www.somepythonthings.tk/programs/somepythonthings-calc/')
+        webbrowser.open_new(
+            '://www.somepythonthings.tk/programs/somepythonthings-calc/')
 
 def download_macOS(links):
     get_updater().call_in_main(throw_info, "SomePythonThings Updater", "The new version is going to be downloaded and installed automatically. \nThe installation time may vary depending on your internet connection and your computer's performance, but it shouldn't exceed a few minutes.\nPlease DO NOT kill the program until the update is done, because it may corrupt the executable files.\nClick OK to start downloading.")
     get_updater().call_in_main(textbox.setPlainText, "The installer is being downloaded. Please wait until the download process finishes. This shouldn't take more than a couple of minutes.\n\nPlease DO NOT close the application")
     os.system('cd; rm somepythonthings-calc_update.dmg')
     try:  
-        wget.download(links['macos'], out='{0}/somepythonthings-calc_update.dmg'.format(os.path.expanduser('~')))
+        wget.download(links['macos'], out='{0}/somepythonthings-music_update.dmg'.format(os.path.expanduser('~')))
         get_updater().call_in_main(install_macOS)
         log("[   OK   ] Download is done, starting launch process.")
     except:  
@@ -744,200 +220,16 @@ def install_macOS():
     sys.exit()
 #End of updates functions
 
-
-def saveSettings(silent=True, angleUnit='degree', mode='auto'):
-    global defaultSettings
-    try:
-        os.chdir(os.path.expanduser('~'))
-        try:
-            os.chdir('.SomePythonThings')
-        except FileNotFoundError:
-            log("[  WARN  ] Can't acces .SomePythonThings folder, creating .SomePythonThings...")
-            os.mkdir(".SomePythonThings")
-            os.chdir('.SomePythonThings')
-        try:
-            os.chdir('Calc')
-        except FileNotFoundError:
-            log("[  WARN  ] Can't acces Calc folder, creating Calc...")
-            os.mkdir("Calc")
-            os.chdir('Calc')
-        try:
-            settingsFile = open('settings.conf', 'w')
-            settingsFile.write(str({
-                "settings_version": actualVersion,
-                "angleUnit": angleUnit,
-                "mode":mode,
-                }))
-            settingsFile.close()
-            log("[   OK   ] Settings saved successfully")
-            return True
-        except Exception as e:
-            throw_error('SomePythonThings Calc', "An error occurred while loading the settings file. \n\nError details:\n"+str(e))
-            log('[        ] Creating new settings.conf')
-            saveSettings()
-            if(debugging):
-                raise e
-            return False
-    except Exception as e:
-        if(not(silent)):
-            throw_info("SomePythonThings Calc", "Unable to save settings. \n\nError details:\n"+str(e))
-        log("[ FAILED ] Unable to save settings")
-        if(debugging):
-            raise e
-        return False
-
-
-def openSettings():
-    global defaultSettings
-    os.chdir(os.path.expanduser('~'))
-    try:
-        os.chdir('.SomePythonThings')
-        try:
-            os.chdir('Calc')
-            try:
-                settingsFile = open('settings.conf', 'r')
-                settings = json.loads("\""+str(settingsFile.read().replace('\n', '').replace('\n\r', ''))+"\"")
-                settingsFile.close()
-                log('[        ] Loaded settings are: '+str(settings))
-                return literal_eval(settings)
-            except Exception as e:
-                log('[        ] Creating new settings.conf')
-                saveSettings()
-                if(debugging):
-                    raise e
-                return defaultSettings
-        except FileNotFoundError:
-            log("[  WARN  ] Can't acces Calc folder, creating settings...")
-            saveSettings()
-            return defaultSettings
-    except FileNotFoundError:
-        log("[  WARN  ] Can't acces .SomePythonThings folder, creating settings...")
-        saveSettings()
-        return defaultSettings
-
-def openSettingsWindow():
-    global calc, settings
-    settingsWindow = Window(calc)
-    settingsWindow.setMinimumSize(300, 170)
-    settingsWindow.setMaximumSize(300, 170)
-    settingsWindow.setWindowTitle("SomePythonThings Calc Settings")
-    settingsWindow.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
-    settingsWindow.setWindowFlag(QtCore.Qt.WindowMinimizeButtonHint, False)
-    settingsWindow.setWindowModality(QtCore.Qt.ApplicationModal)
-    if(_platform == 'darwin'):
-        settingsWindow.setAutoFillBackground(True)
-        settingsWindow.setWindowModality(QtCore.Qt.WindowModal)
-        settingsWindow.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        settingsWindow.setWindowFlag(QtCore.Qt.WindowContextHelpButtonHint, False)
-        settingsWindow.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
-
-    modeSelector = QtWidgets.QComboBox(settingsWindow)
-    modeSelector.insertItem(0, 'Light')
-    modeSelector.insertItem(1, 'Dark')
-    if(_platform!='linux'):
-        modeSelector.insertItem(2, 'Auto')
-    modeSelector.resize(130, 30)
-    modeSelector.move(150, 20)
-    modeSelectorLabel = QtWidgets.QLabel(settingsWindow)
-    modeSelectorLabel.setText("Application theme: ")
-    modeSelectorLabel.move(20, 20)
-    modeSelectorLabel.setObjectName('settingsBackground')
-    modeSelectorLabel.resize(130, 30)
-
-    traySelector = QtWidgets.QComboBox(settingsWindow)
-    traySelector.insertItem(0, 'Degrees (circumference = 360°)')
-    traySelector.insertItem(1, f'Radians (circumference = 2{pi_char}rad)')
-    traySelector.resize(130, 30)
-    traySelector.move(150, 60)
-    traySelectorLabel = QtWidgets.QLabel(settingsWindow)
-    traySelectorLabel.setText("Default angle units: ")
-    traySelectorLabel.move(20, 60)
-    traySelectorLabel.setObjectName('settingsBackground')
-    traySelectorLabel.resize(130, 30)
-
-    saveButton = QtWidgets.QPushButton(settingsWindow)
-    saveButton.setText("Save settings and close")
-    saveButton.resize(260, 40)
-    saveButton.move(20, 110)
-    saveButton.setObjectName('squarePurpleButton')
-    saveButton.clicked.connect(partial(saveAndCloseSettings, modeSelector, traySelector, settingsWindow))
-
-    try:
-        if(settings['mode'].lower() == 'light'):
-            modeSelector.setCurrentIndex(0)
-        elif(settings['mode'].lower() == 'auto'):
-            if(_platform!='linux'):
-                modeSelector.setCurrentIndex(2)
-            else:
-                modeSelector.setCurrentIndex(1)
-        elif(settings['mode'].lower() == 'dark'):
-            modeSelector.setCurrentIndex(1)
-        else:
-            log("[  WARN  ] Could not detect mode!")
-    except KeyError:
-        log("[  WARN  ] Could not detect mode!")
-
-    try:
-        if(settings['angleUnit'] == 'degree'): #the "== False" is here to avoid eval of invalid values and crash of the program
-            traySelector.setCurrentIndex(0)
-        elif(settings['angleUnit'] == 'radian'):
-            traySelector.setCurrentIndex(1)
-        else:
-            log("[  WARN  ] Could not detect default angle unit!")
-    except KeyError:
-        log("[  WARN  ] Could not detect default angle unit!")
-    
-    settingsWindow.show()
-
-def saveAndCloseSettings(modeSelector: QtWidgets.QComboBox, traySelector: QtWidgets.QComboBox, settingsWindow):
-    global settings, forceClose
-    if(traySelector.currentIndex() == 1):
-        settings['angleUnit'] = 'radian'
-    else:
-        settings['angleUnit'] = 'degree'
-    if(modeSelector.currentIndex() == 0):
-        settings['mode'] = 'light'
-    elif(modeSelector.currentIndex() == 1):
-        settings['mode'] = 'dark'
-    else:
-        settings['mode'] = 'auto'
-    forceClose = True
-    settingsWindow.close()
-    saveSettings(silent=True, angleUnit=settings['angleUnit'], mode=settings['mode'])
-    calc.setStyleSheet(getWindowStyleSheet())
-
-
-def changeAngleUnit():
-    global settings
-    if(settings["angleUnit"] == "degree"):
-        log("[   OK   ] Calculator in radians")
-        settings["angleUnit"] = "radian"
-        angleAction.setText("Radians (rad)")
-        saveSettings(silent=True, angleUnit=settings['angleUnit'], mode=settings['mode'])
-
-    else:
-        log("[   OK   ] Calculator in degrees")
-        settings["angleUnit"] = "degree"
-        angleAction.setText("Degrees (deg)")
-        saveSettings(silent=True, angleUnit=settings['angleUnit'], mode=settings['mode'])
-
-
-def throw_info(title, body):
+def throw_info(title, body, icon="calc-icon.png"):
     global a_char, b_char, c_char, z_char, calc
+    if(icon==False):
+        icon='calc-icon.png'
     log("[  INFO  ] "+body)
     msg = QtWidgets.QMessageBox(calc)
-    if(os.path.exists(str(realpath)+"/ok.png")):
-        msg.setIconPixmap(QtGui.QPixmap(str(realpath)+"/ok.png").scaledToHeight(96, QtCore.Qt.SmoothTransformation))
+    if(os.path.exists(str(realpath)+"/"+str(icon))):
+        msg.setIconPixmap(QtGui.QPixmap(str(realpath)+"/"+str(icon)).scaledToHeight(64))
     else:
         msg.setIcon(QtWidgets.QMessageBox.Information)
-    if(_platform == 'darwin'):
-        msg.setAutoFillBackground(True)
-        msg.setWindowModality(QtCore.Qt.WindowModal)
-        msg.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        msg.setWindowFlag(QtCore.Qt.WindowContextHelpButtonHint, False)
-        msg.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
-        msg.setModal(True)
-        msg.setSizeGripEnabled(False)
     msg.setText(body)
     msg.setWindowTitle(title)
     msg.exec_()
@@ -946,18 +238,7 @@ def throw_warning(title, body, warning="Not Specified"):
     global a_char, b_char, c_char, z_char, calc
     log("[  WARN  ] "+body+"\n\tWarning reason: "+warning)
     msg = QtWidgets.QMessageBox(calc)
-    if(os.path.exists(str(realpath)+"/ok.png")):
-        msg.setIconPixmap(QtGui.QPixmap(str(realpath)+"/warn.png").scaledToHeight(96, QtCore.Qt.SmoothTransformation))
-    else:
-        msg.setIcon(QtWidgets.QMessageBox.Warning)
-    if(_platform == 'darwin'):
-        msg.setAutoFillBackground(True)
-        msg.setWindowModality(QtCore.Qt.WindowModal)
-        msg.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        msg.setWindowFlag(QtCore.Qt.WindowContextHelpButtonHint, False)
-        msg.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
-        msg.setModal(True)
-        msg.setSizeGripEnabled(False)
+    msg.setIcon(QtWidgets.QMessageBox.Warning)
     msg.setText(body)
     msg.setWindowTitle(title)
     msg.exec_()
@@ -966,18 +247,7 @@ def throw_error(title, body, error="Not Specified"):
     global a_char, b_char, c_char, z_char, calc
     log("[ FAILED ] "+body+"\n\tError reason: "+error)
     msg = QtWidgets.QMessageBox(calc)
-    if(os.path.exists(str(realpath)+"/ok.png")):
-        msg.setIconPixmap(QtGui.QPixmap(str(realpath)+"/error.png").scaledToHeight(96, QtCore.Qt.SmoothTransformation))
-    else:
-        msg.setIcon(QtWidgets.QMessageBox.Critical)
-    if(_platform == 'darwin'):
-        msg.setAutoFillBackground(True)
-        msg.setWindowModality(QtCore.Qt.WindowModal)
-        msg.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        msg.setWindowFlag(QtCore.Qt.WindowContextHelpButtonHint, False)
-        msg.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
-        msg.setModal(True)
-        msg.setSizeGripEnabled(False)
+    msg.setIcon(QtWidgets.QMessageBox.Critical)
     msg.setText(body)
     msg.setWindowTitle(title)
     msg.exec_()
@@ -1004,45 +274,6 @@ def ANSWER():
     global previousResult
     if (not(previousResult=="")):
         print_symbol_and_close("Ans")
-
-def sin(n):
-    log("[   OK   ] Angle unit set to "+settings["angleUnit"])
-    if(settings["angleUnit"] == 'degree'):
-        n = math.radians(n)
-    return math.sin(n)
-
-def cos(n):
-    log("[   OK   ] Angle unit set to "+settings["angleUnit"])
-    if(settings["angleUnit"] == 'degree'):
-        n = math.radians(n)
-    return math.cos(n)
-
-def tan(n):
-    log("[   OK   ] Angle unit set to "+settings["angleUnit"])
-    if(settings["angleUnit"] == 'degree'):
-        n = math.radians(n)
-    return math.tan(n)
-
-def arcsin(n):
-    log("[   OK   ] Angle unit set to "+settings["angleUnit"])
-    if(settings["angleUnit"] == 'degree'):
-        return math.degrees(math.asin(n))
-    else:
-        return math.asin(n)
-
-def arccos(n):
-    log("[   OK   ] Angle unit set to "+settings["angleUnit"])
-    if(settings["angleUnit"] == 'degree'):
-        return math.degrees(math.acos(n))
-    else:
-        return math.acos(n)
-
-def arctan(n):
-    log("[   OK   ] Angle unit set to "+settings["angleUnit"])
-    if(settings["angleUnit"] == 'degree'):
-        return math.degrees(math.atan(n))
-    else:
-        return math.atan(n)
 
 def pasteOperation():
     show_popup()
@@ -1078,9 +309,9 @@ def print_symbol(s):
             appendText('\n\n')
             needClear = False
             currentOperation = ''
-        appendText(f" {s} ")
+        appendText(s)
         scrollBottom()
-        currentOperation += f" {s} "
+        currentOperation += s
         dotAvailable = False 
         symbolAvailable = False
         numberAvailable = False
@@ -1111,7 +342,7 @@ def print_operation(o):
     if canWrite:
         scrollBottom()
         if needClear:
-            if not o in '√arcsinarccosarctan':
+            if not '√' in o:
                 appendText("\n\n" + str(previousResult))
                 currentOperation = str(previousResult)
             else:
@@ -1123,26 +354,21 @@ def print_operation(o):
                 appendText(' '+o+' ')
                 currentOperation += ' '+o+' '
         else:
-            if o in "√arcsinarccosarctan":
-                if not(symbolAvailable):
-                    o = "* "+o
+            if o=="√":
                 o += '('
-                bracketsToClose += 1
             appendText(' '+o+' ')
             currentOperation += ' '+o+' '
         operationAvailable = False
         dotAvailable = True
         symbolAvailable = True
         numberAvailable = True
-        if(popup):
-            show_popup()
-        if o == '^(' or o=='√(' or o in " arcsin arccos arctan ":
+        if o == '^(' or o=='√(':
             bracketsToClose += 1
     scrollBottom()
 
 def print_bracket(b):
     global a_char, b_char, c_char, z_char, x_char, y_char, e_char, pi_char,  operationAvailable, bracketsToClose, currentOperation, needClear, canWrite, dotAvailable, numberAvailable, symbolAvailable
-    log("[  INFO  ] Starting print_bracket(): canWrite={0}, needClear={1}, operationAvailable={2}, o={3}, bracketsToClose={4}".format(canWrite, needClear, operationAvailable, b, bracketsToClose))
+    log("[  INFO  ] Starting print_bracket(): canWrite={0}, needClear={1}, operationAvailable={2}, o={3}".format(canWrite, needClear, operationAvailable, b))
     if canWrite:
         operationAvailable = False
         if b == ')':
@@ -1187,33 +413,15 @@ def huge_calculate():
     reWriteOperation = False
     global currentOperation
     while currentOperation.count('(')>currentOperation.count(')'):
-        log("[  WARN  ] Brackets Missing! (missing {0} brackets)".format(currentOperation.count('(')-currentOperation.count(')')))
+        log("[  WARN  ] Brackets Missing !(missing {0} brackets)".format(currentOperation.count('(')-currentOperation.count(')')))
         canWrite=True
         missingBrackets = currentOperation.count('(')-currentOperation.count(')')
         get_updater().call_in_main(print_bracket, ')')
         while(missingBrackets==currentOperation.count('(')-currentOperation.count(')')):
-            time.sleep(0.01)
+            continue
         canWrite=False
-    get_updater().call_in_main(calc.setWindowTitle, "SomePythonThings Calc: "+currentOperation)
     log("[   OK   ] No missing brackets")
-    currentOperation = currentOperation.split(" ")
-    for i in range(len(currentOperation)):
-        if(currentOperation[i] != '0'):
-            currentOperation[i] = currentOperation[i].lstrip('0')
-    currentOperation = ' '.join(currentOperation)
     result = pure_calculate(currentOperation.replace('^', '**').replace('√', 'sqr'))
-    if use_x:
-        get_updater().call_in_main(textbox.appendPlainText, ' {0} value is "{1}" '.format(x_char, x_prev_value))
-    if use_y:
-        get_updater().call_in_main(textbox.appendPlainText, ' {0} value is "{1}"'.format(y_char, y_prev_value))
-    if use_z:
-        get_updater().call_in_main(textbox.appendPlainText, ' {0} value is "{1}" '.format(z_char, z_prev_value))
-    if use_a:
-        get_updater().call_in_main(textbox.appendPlainText, ' {0} value is "{1}"'.format(a_char, a_prev_value))
-    if use_b:
-        get_updater().call_in_main(textbox.appendPlainText, ' {0} value is "{1}" '.format(b_char, b_prev_value))
-    if use_c:
-        get_updater().call_in_main(textbox.appendPlainText, ' {0} value is "{1}"'.format(c_char, c_prev_value))
     if  not "  " in str(result):
         needClear = True
         previousResult = str(result)
@@ -1241,19 +449,13 @@ def huge_calculate():
             result = int(result)
             get_updater().call_in_main(textbox.appendPlainText, ' result = '+f"{result:,}".replace('e+', ' * 10^'))
         except:
+            log("[  WARN  ] Unable to int() result. Result value is "+result)
             get_updater().call_in_main(textbox.appendPlainText, ' result = '+str(result).replace('e+', ' * 10^'))
-            try:
-                log("[  WARN  ] Unable to int() result. Result value is "+result)
-            except:
-                pass
     else:
         log("[  WARN  ] X, Y, Z, A, B or C NOT detected.")
         try:
             result = int(result)
             get_updater().call_in_main(textbox.appendPlainText, ' = '+f"{result:,}".replace('e+', ' * 10^'))
-        except ValueError:
-            log("[  WARN  ] Unable to int() result.")
-            get_updater().call_in_main(textbox.appendPlainText, ' = '+str(result).replace('e+', ' * 10^'))
         except Exception as e:
             if(debugging):
                 raise e
@@ -1277,7 +479,7 @@ def pure_calculate(s):
             raise e
     return result
 def calculate():
-    global a_char, b_char, showOnTopEnabled, c_char, z_char, x_prev_value, use_x, use_y, use_z, use_a, use_b, use_c, y_prev_value, z_prev_value, a_prev_value, b_prev_value, c_prev_value, x_char, y_char, e_char, pi_char,  calc, currentOperation, operationAvailable, needClear, previousResult, dotAvailable, bracketsToClose, calcHistory, textbox, result, calc, numberAvailable, symbolAvailable
+    global a_char, b_char, title, showOnTopEnabled, c_char, z_char, x_prev_value, use_x, use_y, use_z, use_a, use_b, use_c, y_prev_value, z_prev_value, a_prev_value, b_prev_value, c_prev_value, x_char, y_char, e_char, pi_char,  calc, currentOperation, operationAvailable, needClear, previousResult, dotAvailable, bracketsToClose, calcHistory, textbox, result, calc, numberAvailable, symbolAvailable
     if(not needClear):
         disableAll()
         use_x = False
@@ -1286,7 +488,11 @@ def calculate():
         use_a = False
         use_b = False
         use_c = False
+        if(_platform=='darwin'):
+            title.setText('SomePythonThings Calc:  '+currentOperation)
         calc.setWindowTitle('SomePythonThings Calc:  '+currentOperation)
+        while str(currentOperation[0:1]) == '0':
+            currentOperation = str(currentOperation)[1:]
         if(pi_char in currentOperation):
             currentOperation = currentOperation.replace(pi_char, "3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679")
         if(fi_char in currentOperation):
@@ -1295,39 +501,51 @@ def calculate():
             currentOperation = currentOperation.replace(e_char, "2.7182818284590452353602874713526624977572470936999595749669676277240766303535475945713821785251664274")
         if("Ans" in currentOperation):
             currentOperation = currentOperation.replace("Ans", previousResult)
-        if(f" {x_char} " in currentOperation):
+        if(x_char in currentOperation):
             x = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+x_char+" on the operation.\nEnter value for "+x_char+": ", QtWidgets.QLineEdit.Normal, str(x_prev_value))
             x_prev_value = (x[0].replace(",", "."))
             use_x = True
             currentOperation = currentOperation.replace(x_char, '({0})'.format(x[0].replace(",", ".")))
-        if(f" {y_char} " in currentOperation):
+        if(y_char in currentOperation):
             y = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+y_char+" on the operation.\nEnter value for "+y_char+": ", QtWidgets.QLineEdit.Normal, str(y_prev_value))
             y_prev_value = (y[0].replace(",", "."))
             use_y = True
             currentOperation = currentOperation.replace(y_char, '({0})'.format(y[0].replace(",", ".")))
-        if(f" {z_char} " in currentOperation):
+        if(z_char in currentOperation):
             z = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+z_char+" on the operation.\nEnter value for "+z_char+": ", QtWidgets.QLineEdit.Normal, str(z_prev_value))
             z_prev_value = (z[0].replace(",", "."))
             use_z = True
             currentOperation = currentOperation.replace(z_char, '({0})'.format(z[0].replace(",", ".")))
-        if(f" {a_char} " in currentOperation):
+        if(a_char in currentOperation):
             a = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+a_char+" on the operation.\nEnter value for "+a_char+": ", QtWidgets.QLineEdit.Normal, str(a_prev_value))
             a_prev_value = (a[0].replace(",", "."))
             use_a = True
-            currentOperation = currentOperation.replace(f" {a_char} ", ' ({0}) '.format(a[0].replace(",", ".")))
-        if(f" {b_char} " in currentOperation):
+            currentOperation = currentOperation.replace(a_char, '({0})'.format(a[0].replace(",", ".")))
+        if(b_char in currentOperation):
             b = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+b_char+" on the operation.\nEnter value for "+b_char+": ", QtWidgets.QLineEdit.Normal, str(b_prev_value))
             b_prev_value = (b[0].replace(",", "."))
             use_b = True
             currentOperation = currentOperation.replace(b_char, '({0})'.format(b[0].replace(",", ".")))
-        print(currentOperation)
         if(c_char in currentOperation):
             c = QtWidgets.QInputDialog.getText(calc, "SomePythonThings Calc", "It seems like you entered an "+c_char+" on the operation.\nEnter value for "+c_char+": ", QtWidgets.QLineEdit.Normal, str(c_prev_value))
             c_prev_value = (c[0].replace(",", "."))
             use_c = True
-            currentOperation = currentOperation.replace(" {0} ".format(c_char), ' ({0}) '.format(c[0].replace(",", ".")))
-        if(not(needClear)):
-            Thread(target=huge_calculate, daemon=True).start()
+            currentOperation = currentOperation.replace(c_char, '({0})'.format(c[0].replace(",", ".")))
+        if use_x:
+            textbox.appendPlainText(' {0} value is "{1}" '.format(x_char, x_prev_value))
+        if use_y:
+            textbox.appendPlainText(' {0} value is "{1}"'.format(y_char, y_prev_value))
+        if use_z:
+            textbox.appendPlainText(' {0} value is "{1}" '.format(z_char, z_prev_value))
+        if use_a:
+            textbox.appendPlainText(' {0} value is "{1}"'.format(a_char, a_prev_value))
+        if use_b:
+            textbox.appendPlainText(' {0} value is "{1}" '.format(b_char, b_prev_value))
+        if use_c:
+            textbox.appendPlainText(' {0} value is "{1}"'.format(c_char, c_prev_value))
+        t = Thread(target=huge_calculate)
+        t.daemon = (True)
+        t.start()
         
 def disableAll():
     global a_char, b_char, c_char, z_char, x_char, y_char, e_char, pi_char,  canWrite
@@ -1371,21 +589,16 @@ def clear_all():
     currentOperation = ''
     scrollBottom()
 
-def delete(nocheck=False):
+def delete():
     global a_char, b_char, c_char, z_char, x_char, y_char, e_char, pi_char,  textbox, currentOperation
     scrollBottom()
     text = textbox.toPlainText()
     char = text[-1:]
-    log(f"[   OK   ] Starting del char {char}")
-    text = textbox.toPlainText()
-    char = text[-1:]
-    if not(nocheck):
-        checkChar(char)
+    checkChar(char)
     if char == ' ':
         textbox.setPlainText(text[:-1])
         currentOperation = currentOperation[:-1]
-        if not(nocheck):
-            delAfterSpace()
+        delAfterSpace()
     else:
         textbox.setPlainText(text[:-1])
         currentOperation = currentOperation[:-1]
@@ -1396,10 +609,7 @@ def delAfterSpace():
     scrollBottom()
     text = textbox.toPlainText()
     char = text[-1:]
-    log(f"[   OK   ] Starting delAfterSpace char {char}")
     checkChar(char)
-    text = textbox.toPlainText()
-    char = text[-1:]
     if char == ' ':
         textbox.setPlainText(text[:-1])
         currentOperation = currentOperation[:-1]
@@ -1415,10 +625,7 @@ def delOnlyIfSpace():
     scrollBottom()
     text = textbox.toPlainText()
     char = text[-1:]
-    log(f"[   OK   ] Starting delOnlyIfSpace char {char}")
     checkChar(char)
-    text = textbox.toPlainText()
-    char = text[-1:]
     if char == ' ':
         textbox.setPlainText(text[:-1])
         currentOperation = currentOperation[:-1]
@@ -1427,51 +634,17 @@ def delOnlyIfSpace():
 
 def checkChar(c):
     global a_char, b_char, c_char, z_char, x_char, y_char, e_char, pi_char,  dotAvailable, bracketsToClose, operationAvailable, numberAvailable, symbolAvailable
-    text = textbox.toPlainText()
-    log(f"[   OK   ] Starting delAfterSpace char {c}")
-    if(c == "("):
-        s = text[-7:-1]
-        log("[   OK   ] Special string "+s)
-        if(s=="arcsin" or s=="arccos" or s=="arctan"):
-            for _ in range(6):
-                delete(nocheck=True)
-            numberAvailable = True
-            operationAvailable = True
-        else:
-            s = text[-4:-1]
-            log("[   OK   ] New special string "+s)
-            if(s == "sin" or s == "cos" or s == "tan"):
-                for _ in range(3):
-                    delete(nocheck=True)
-                numberAvailable = True
-                operationAvailable = True
-            else:
-                s = text[-2:-1]
-                log("[   OK   ] New special string "+s)
-                if(s=="^" or s=="√"):
-                    for _ in range(1):
-                        delete(nocheck=True)        
-                    numberAvailable = True
-                    operationAvailable = True
-                    
     if c == '.':
-        log("[   OK   ] Char is dot")
         dotAvailable = True
     elif c == '(':
-        log("[   OK   ] Char is (")
-        bracketsToClose = textbox.toPlainText().count('(') - textbox.toPlainText().count(')')
+        bracketsToClose -= 1
     elif c == ')':
-        log("[   OK   ] Char is )")
-        bracketsToClose = textbox.toPlainText().count('(') - textbox.toPlainText().count(')')
+        bracketsToClose += 1
     elif c in '*/^√+-':
-        log("[   OK   ] Char is operation")
         operationAvailable = True
-    elif c == pi_char or c == e_char or c == x_char or c == y_char or c == z_char or c == a_char or c == b_char or c == c_char:
-        log("[   OK   ] Char is symbol")
+    elif (str(c) == str(pi_char)) or (str(c) == str(e_char)) or (str(c) == str(x_char)) or (str(c) == str(y_char)):
         numberAvailable = True
         symbolAvailable = True
-    else:
-        log(f"[  WARN  ] Unknown char \"{c}\"")
 
 def on_key(key):
     if key == QtCore.Qt.Key_Return:
@@ -1502,11 +675,11 @@ def on_key(key):
         print_operation('*')
     elif key == QtCore.Qt.Key_Slash:
         print_operation('/')
-    elif key == 94:#Windows "^" key code
+    elif key == 94:#Windows "^" sign's key code
         print_operation('^(')
-    elif key == 33554431:#macOS "^" key code
+    elif key == 33554431:#macOS "^" sign's key code
         print_operation('^(')
-    elif key == 16781906:#ubuntu "^" key code
+    elif key == 16781906:#ubuntu "^" sign's key code
         print_operation('^(')
     elif key == QtCore.Qt.Key_V:
         print_operation('√')
@@ -1540,7 +713,10 @@ def on_key(key):
         print_symbol(a_char)
     elif key == QtCore.Qt.Key_B:
         print_symbol(b_char)
-    log('[   OK   ] Key pressed: %i' % key)
+    elif key == QtCore.Qt.Key_C:
+        print_symbol(c_char)
+    #else:
+    #   log('key pressed: %i' % key)
     
 def show_popup():
     global a_char, b_char, c_char, z_char, x_char, y_char, e_char, pi_char,  popup, buttons
@@ -1638,20 +814,35 @@ def showOnTop():
     global showOnTopEnabled, title, calc, topAction
     if(not(showOnTopEnabled)):
         showOnTopEnabled = True
-        calc.setWindowFlags(QtCore.Qt.WindowFlags(QtCore.Qt.WindowStaysOnTopHint))
-        topAction.setCheckable(True)
+        if(_platform=='darwin'):
+            flags = QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.BypassWindowManagerHint)# | QtCore.Qt.X11BypassWindowManagerHint)
+        else:
+            flags = QtCore.Qt.WindowFlags(QtCore.Qt.WindowStaysOnTopHint)#| QtCore.Qt.X11BypassWindowManagerHint)# | QtCore.Qt.BypassWindowManagerHint)# | QtCore.Qt.X11BypassWindowManagerHint)
+        calc.setWindowFlags(flags)
+        if(_platform=='darwin'):
+            buttons['exit'].show()
+            buttons['minimize'].show()
+            buttons['maximize'].show()
+        #topAction.setCheckable(True)
+        if(_platform=='darwin'):
+            title.setText(calc.windowTitle())
+            title.setGeometry(170, 1, calc.width()-292, 28)
+            title.show()
         log("[   OK   ] Re-showing Window...")
         calc.show()
         resizeWidgets()
     else:
         showOnTopEnabled = False
-        calc.setWindowFlags(QtCore.Qt.WindowFlags())
-        topAction.setCheckable(True)
+        if(_platform=='darwin'):
+            flags = QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint)
+        else:
+            flags = QtCore.Qt.WindowFlags()
+        calc.setWindowFlags(flags)
+        #topAction.setCheckable(True)
         log("[   OK   ] Re-showing Window...")
         calc.hide()
         calc.show()
         resizeWidgets()
-    showCalc()
 
 def openOnExplorer(file, force=False):
     if    (_platform == 'win32'):
@@ -1677,81 +868,90 @@ def openLog():
     openOnExplorer(tempDir.name.replace('\\', '/')+'/log.txt', force=True)
 
 def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
-    log("[  INFO  ] Starting resizeWidgets()", file=False)
-    global a_char, b_char, c_char, z_char, fontsize, x_char, y_char, e_char, pi_char,  buttons, popup, textbox, calc
+    log("[  INFO  ] Starting resizeWidgets()")
+    global a_char, b_char, c_char, z_char, title, grips, x_char, y_char, e_char, pi_char,  buttons, popup, textbox, calc
     if(not(resizeWindow)):
         winHeight = calc.height()
         winWidth = calc.width()
     else:
         calc.resize(winWidth, winHeight)
-    log("[   OK   ] Window size is {0}*{1}px".format(winHeight, winWidth), file=False)
+    log("[   OK   ] Window size is {0}*{1}px".format(winHeight, winWidth))
     buttons['POPUP'].show()
-    if(winWidth<1100):
+    if(winWidth<=1099):
         fullWinWidth = winWidth
-        big_width = int(25/100*winWidth)
-        tiny_width = int(big_width/2)+1
+        big_width = int(25/100*winWidth)+1
+        tiny_width = int(12.5/100*winWidth)+1
         small_width = int(17/100*winWidth)+1
-        height = int(14/100*winHeight)+1
+        height = int(14/100*winHeight+1)+1
         first_row = int(30/100*winHeight)
-        second_row= first_row+height
-        third_row= second_row+height
-        fourth_row= third_row+height
-        fifth_row= fourth_row+height
+        second_row= int((30+14)/100*winHeight)
+        third_row= int((30+14*2)/100*winHeight)
+        fourth_row= int((30+14*3)/100*winHeight)
+        fifth_row= int((30+14*4)/100*winHeight)
         big_1st_column = int((25*0)/100*winWidth)
-        big_2nd_column = big_width
-        big_3rd_column = big_width*2
-        big_4th_column = big_width*3
-        small_1st_column = 0
-        small_2nd_column = int((12.5)/100*winWidth)
-        small_3rd_column = big_width
+        big_2nd_column = int((25*1)/100*winWidth)
+        big_3rd_column = int((25*2)/100*winWidth)
+        big_4th_column = int((25*3)/100*winWidth)
+        small_1st_column = int((12.5*0)/100*winWidth)
+        small_2nd_column = int((12.5*1)/100*winWidth)
+        small_3rd_column = int((12.5*2)/100*winWidth)
         small_4th_column = int((12.5*3)/100*winWidth)
-        small_5th_column = big_width*2
+        small_5th_column = int((16.6666*3)/100*winWidth)
         small_6th_column = int((16.6666*4)/100*winWidth)
         small_7th_column = int((16.6666*5)/100*winWidth)
     else:
         fullWinWidth = winWidth
-        winWidth = winWidth*0.6
-        big_width = int(25/100*winWidth)
-        tiny_width = int(big_width/2)+1
+        winWidth = winWidth*0.75
+        big_width = int(25/100*winWidth)+1
+        tiny_width = int(12.5/100*winWidth)+1
         small_width = int(17/100*winWidth)+1
-        height = int(14/100*winHeight)+1
+        height = int(14/100*winHeight+1)+1
         first_row = int(30/100*winHeight)
-        second_row= first_row+height
-        third_row= second_row+height
-        fourth_row= third_row+height
-        fifth_row= fourth_row+height
+        second_row= int((30+14)/100*winHeight)
+        third_row= int((30+14*2)/100*winHeight)
+        fourth_row= int((30+14*3)/100*winHeight)
+        fifth_row= int((30+14*4)/100*winHeight)
         big_1st_column = int((25*0)/100*winWidth)
-        big_2nd_column = big_width
-        big_3rd_column = big_width*2
-        big_4th_column = big_width*3
-        small_1st_column = 0
-        small_2nd_column = int((12.5)/100*winWidth)
-        small_3rd_column = big_width
+        big_2nd_column = int((25*1)/100*winWidth)
+        big_3rd_column = int((25*2)/100*winWidth)
+        big_4th_column = int((25*3)/100*winWidth)
+        small_1st_column = int((12.5*0)/100*winWidth)
+        small_2nd_column = int((12.5*1)/100*winWidth)
+        small_3rd_column = int((12.5*2)/100*winWidth)
         small_4th_column = int((12.5*3)/100*winWidth)
-        small_5th_column = big_width*2
+        small_5th_column = int((16.6666*3)/100*winWidth)
         small_6th_column = int((16.6666*4)/100*winWidth)
         small_7th_column = int((16.6666*5)/100*winWidth)
-    textbox.resize(fullWinWidth ,int((winHeight/100*30-15)))
-    if(int(20/1100*fullWinWidth)<int(20/500*winHeight)):
-        fontsize = str(int(20/1100*fullWinWidth))
-        log("[   OK   ] Width > Height, font size is {0}".format(fontsize), file=False)
+    textbox.resize(fullWinWidth ,int((winHeight/100*30)-29))
+    if(_platform=='darwin'):
+        grips['bottom-right'].setGeometry(int(calc.width()/2)+1, int(calc.height()-2), int(calc.width()/2)+1, 2)
+        grips['right-bottom'].setGeometry(int(calc.width())-2, int(calc.height()/2)+1, 2, int(calc.height()/2)+1)
+        grips['bottom-left'].setGeometry(0, int(calc.height()-2), int(calc.width()/2)+1, 2)
+        grips['left-bottom'].setGeometry(0, int(calc.height()/2)+1, 2, int(calc.height()/2)+1)
+        grips['top-right'].setGeometry(int(calc.width()/2)+1, 0, int(calc.width()/2)+1, 2)
+        grips['right-top'].setGeometry(int(calc.width())-2, 0, 2, int(calc.height()/2)+1)
+        grips['top-left'].setGeometry(0, 0, int(calc.width()/2)+1, 2)
+        grips['left-top'].setGeometry(0, 0, 2, int(calc.height()/2)+1)
+    if(int(20/900*fullWinWidth)<int(20/500*winHeight)):
+        fontsize = str(int(20/900*fullWinWidth))
+        log("[   OK   ] Width > Height, font size is {0}".format(fontsize))
     else:
         fontsize = str(int(20/500*winHeight))
-        log("[   OK   ] Width < Height, font size is {0}".format(fontsize), file=False)
+        log("[   OK   ] Width < Height, font size is {0}".format(fontsize))
     if(int(fontsize)<18):
-        log("[   OK   ] Font size under 18, setting 18 value", file=False)
+        log("[   OK   ] Font size under 18, setting 18 value")
         buttons['CA'].setText('CA')
         buttons['CO'].setText('C')
         buttons['Del'].setText('Del')
-        log("[   OK   ] Changing Ca, C and Del text to minified label", file=False)
+        log("[   OK   ] Changing Ca, C and Del text to minified label")
         fontsize="18"
     else:
         buttons['CA'].setText('Clear All')
         buttons['CO'].setText('Clear')
         buttons['Del'].setText('Delete')
-        log("[   OK   ] Changing Ca, C and Del text to full label", file=False)
+        log("[   OK   ] Changing Ca, C and Del text to full label")
     if(int(fontsize)>28):
-        log("[   OK   ] Font size over 28, setting 28 value", file=False)
+        log("[   OK   ] Font size over 28, setting 28 value")
         fontsize="28"
     buttons['0'].move(big_2nd_column, fifth_row)
     buttons['0'].resize(big_width, height) #Resize button
@@ -1774,22 +974,21 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
     buttons['9'].move(big_3rd_column, second_row)
     buttons['9'].resize(big_width, height) #Resize button
     buttons['/'].move(big_4th_column, second_row)
-    buttons['/'].resize(big_width+5, height) #Resize button
+    buttons['/'].resize(big_width, height) #Resize button
     buttons['*'].move(big_4th_column, third_row)
-    buttons['*'].resize(big_width+5, height) #Resize button
+    buttons['*'].resize(big_width, height) #Resize button
     buttons['^('].move(small_3rd_column, first_row)
     buttons['^('].resize(tiny_width, height) #Resize button
     buttons['√'].move(small_4th_column, first_row)
     buttons['√'].resize(tiny_width, height) #Resize button
     buttons['+'].move(big_4th_column, fourth_row)
-    buttons['+'].resize(big_width+5, height) #Resize button
+    buttons['+'].resize(big_width, height) #Resize button
     buttons['-'].move(big_4th_column, fifth_row)
-    buttons['-'].resize(big_width+5, height) #Resize button
+    buttons['-'].resize(big_width, height) #Resize button
     buttons['='].move(big_3rd_column, fifth_row)
     buttons['='].resize(big_width, height) #Resize button
     buttons['.'].move(big_1st_column, fifth_row)
     buttons['.'].resize(big_width, height) #Resize button
-
     buttons['('].move(small_1st_column, first_row)
     buttons['('].resize(tiny_width, height) #Resize button
     buttons[')'].move(small_2nd_column, first_row)
@@ -1800,27 +999,52 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
     buttons['CO'].resize(small_width, height) #Resize button
     buttons['CA'].move(small_7th_column, first_row)
     buttons['CA'].resize(small_width, height) #Resize button
+    if(_platform=='darwin'):
+        buttons['exit'].move(fullWinWidth-42, 2)
+        buttons['exit'].resize(40, 26) #Resize button
+        buttons['maximize'].move(fullWinWidth-82, 2)
+        buttons['maximize'].resize(40, 26) #Resize button
+        buttons['minimize'].move(fullWinWidth-122, 2)
+        buttons['minimize'].resize(40, 26) #Resize button
     if(fullWinWidth<1100):
         if(not popup):
-            buttons["="].setObjectName("equalNormal")
+            buttons["="].setStyleSheet("""
+            QPushButton
+            { 
+                border: none; 
+                background-color: #33998a; 
+                font-size:"""+fontsize+"""px; 
+                color: #DDDDDD; 
+                font-family: \""""+font+"""\";
+                font-weight: bold;
+                border-radius: 0px; 
+            }
+            
+            #top-left{
+                border-top-left-radius: 3px;
+                }
+            #top-right{
+                border-top-right-radius: 3px;
+                }
+            #bottom-left{
+                border-bottom-left-radius: 3px;
+                }
+            #bottom-right{
+                border-bottom-right-radius: 3px;
+            }
+            #equal {
+                border-top-left-radius: 3px;
+            }
+            QPushButton::hover
+            {
+                background-color: #222222;
+            }
+            """)
             buttons['POPUP'].move(winWidth-26, int(winHeight/2)-25)
             pX = int(winWidth)
             pY = int(winHeight/2)
             pWidth = int(winWidth/100*20)
             pHeight = int(height)
-            
-            buttons['SIN'].resize(pWidth, pHeight)
-            buttons['SIN'].move(pX+pWidth*2, pY)
-            buttons['COS'].resize(pWidth, pHeight)
-            buttons['COS'].move(pX+pWidth*2, pY+pHeight)
-            buttons['TAN'].resize(pWidth, pHeight)
-            buttons['TAN'].move(pX+pWidth*2, pY+pHeight*2)
-            buttons['ARCSIN'].resize(pWidth, pHeight)
-            buttons['ARCSIN'].move(pX+pWidth*2, pY+pHeight*3)
-            buttons['ARCCOS'].resize(pWidth, pHeight)
-            buttons['ARCCOS'].move(pX+pWidth*2, pY+pHeight*4)
-            buttons['ARCTAN'].resize(pWidth, pHeight)
-            buttons['ARCTAN'].move(pX+pWidth*2, pY+pHeight*5)
             buttons["X"].move(pX, (pY-height*2))
             buttons["X"].resize(pWidth, pHeight)
             buttons["Y"].move(pX, pY-height)
@@ -1847,24 +1071,39 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
             buttons["PASTE"].resize(pWidth, pHeight)
             buttons['POPUP'].show()
         else:
-            buttons["="].setObjectName("equalLight")
-            pX = int(winWidth/100*60)
+            buttons["="].setStyleSheet("""
+            QPushButton
+            { 
+                border: none; 
+                background-color: #222222; 
+                font-size:"""+fontsize+"""px; 
+                color: #DDDDDD; 
+                font-family: \""""+font+"""\";
+                font-weight: bold;
+                border-radius: 0px;
+            }
+        #top-left{
+            border-top-left-radius: 3px;
+            }
+        #top-right{
+            border-top-right-radius: 3px;
+            }
+        #bottom-left{
+            border-bottom-left-radius: 3px;
+            }
+        #bottom-right{
+            border-bottom-right-radius: 3px;
+            }
+            QPushButton::hover
+            {
+                background-color: #222222;
+            }
+            """)
+            buttons["="]
+            pX = int(winWidth/100*80)
             pY = int(winHeight/2)
             pWidth = int(winWidth/100*20)
             pHeight = height
-            
-            buttons['SIN'].resize(pWidth, pHeight)
-            buttons['SIN'].move(pX+pWidth, pY-pHeight*3)
-            buttons['COS'].resize(pWidth, pHeight)
-            buttons['COS'].move(pX+pWidth, pY-pHeight*2)
-            buttons['TAN'].resize(pWidth, pHeight)
-            buttons['TAN'].move(pX+pWidth, pY-pHeight)
-            buttons['ARCSIN'].resize(pWidth, pHeight)
-            buttons['ARCSIN'].move(pX+pWidth, pY)
-            buttons['ARCCOS'].resize(pWidth, pHeight)
-            buttons['ARCCOS'].move(pX+pWidth, pY+pHeight)
-            buttons['ARCTAN'].resize(pWidth, pHeight)
-            buttons['ARCTAN'].move(pX+pWidth, pY+pHeight*2)
             buttons['POPUP'].move(pX-pWidth-25, int(winHeight/2)-25)
             buttons["X"].move(pX, pY-height*3)
             buttons["X"].resize(pWidth, pHeight+1)
@@ -1893,83 +1132,279 @@ def resizeWidgets(resizeWindow=False, winHeight=600, winWidth=900):
         buttons['POPUP'].resize(50, 50) #Resize button
         buttons['POPUP'].show()
     else:
-        buttons["="].setObjectName("equalNormal")
-        pX = int(fullWinWidth*0.6)
+        buttons["="].setStyleSheet("""
+            QPushButton
+            { 
+                border: none; 
+                background-color: #33998a; 
+                font-size:"""+fontsize+"""px; 
+                color: #DDDDDD; 
+                font-family: \""""+font+"""\";
+                font-weight: bold;
+                border-radius: 0px;
+            }
+            
+        #top-left{
+            border-top-left-radius: 3px;
+            }
+        #top-right{
+            border-top-right-radius: 3px;
+            }
+        #bottom-left{
+            border-bottom-left-radius: 3px;
+            }
+        #bottom-right{
+            border-bottom-right-radius: 3px;
+            }
+            QPushButton::hover
+            {
+                background-color: #222222;
+            }
+            """)
+        buttons["="]
+        pX = int(fullWinWidth*0.75)-1
         pY = int(winHeight*0.3)
-        pWidth = int((fullWinWidth*0.4)/3)+1
-        pHeight = int((winHeight*0.7)/6)+1
+        pWidth = int((fullWinWidth*0.25)/2)
+        pHeight = int((winHeight*0.7)/6)
         buttons['POPUP'].move(pX-pWidth-25, int(winHeight/2)-25)
         buttons["X"].move(pX+pWidth, pY)
-        buttons["X"].resize(pWidth, pHeight)
+        buttons["X"].resize(pWidth+5, pHeight+5)
         buttons["Y"].move(pX+pWidth, pY+pHeight)
-        buttons["Y"].resize(pWidth, pHeight)
+        buttons["Y"].resize(pWidth+5, pHeight+5)
         buttons["Z"].move(pX+pWidth, pY+pHeight*2)
-        buttons["Z"].resize(pWidth, pHeight)
+        buttons["Z"].resize(pWidth+5, pHeight+5)
         buttons["A"].move(pX+pWidth, pY+pHeight*3)
-        buttons["A"].resize(pWidth, pHeight)
+        buttons["A"].resize(pWidth+5, pHeight+5)
         buttons["B"].move(pX+pWidth, pY+pHeight*4)
-        buttons["B"].resize(pWidth, pHeight)
+        buttons["B"].resize(pWidth+5, pHeight+5)
         buttons["C"].move(pX+pWidth, pY+pHeight*5)
-        buttons["C"].resize(pWidth, pHeight)
+        buttons["C"].resize(pWidth+5, pHeight+5)
         buttons["PI"].move(pX, pY)
-        buttons["PI"].resize(pWidth, pHeight)
+        buttons["PI"].resize(pWidth+5, pHeight+5)
         buttons["E"].move(pX, pY+pHeight)
-        buttons["E"].resize(pWidth, pHeight)
+        buttons["E"].resize(pWidth+5, pHeight+5)
         buttons["GOLDEN-RATIO"].move(pX, pY+pHeight*2)
-        buttons["GOLDEN-RATIO"].resize(pWidth, pHeight)
+        buttons["GOLDEN-RATIO"].resize(pWidth+5, pHeight+5)
         buttons["ANS"].move(pX, pY+pHeight*3)
-        buttons["ANS"].resize(pWidth, pHeight)
+        buttons["ANS"].resize(pWidth+5, pHeight+5)
         buttons["EDIT"].move(pX, pY+pHeight*4)
-        buttons["EDIT"].resize(pWidth, pHeight)
+        buttons["EDIT"].resize(pWidth+5, pHeight+5)
         buttons["PASTE"].move(pX, pY+pHeight*5)
-        buttons["PASTE"].resize(pWidth, pHeight)
-        buttons['SIN'].resize(pWidth, pHeight)
-        buttons['SIN'].move(pX+pWidth*2, pY)
-        buttons['COS'].resize(pWidth, pHeight)
-        buttons['COS'].move(pX+pWidth*2, pY+pHeight)
-        buttons['TAN'].resize(pWidth, pHeight)
-        buttons['TAN'].move(pX+pWidth*2, pY+pHeight*2)
-        buttons['ARCSIN'].resize(pWidth, pHeight)
-        buttons['ARCSIN'].move(pX+pWidth*2, pY+pHeight*3)
-        buttons['ARCCOS'].resize(pWidth, pHeight)
-        buttons['ARCCOS'].move(pX+pWidth*2, pY+pHeight*4)
-        buttons['ARCTAN'].resize(pWidth, pHeight)
-        buttons['ARCTAN'].move(pX+pWidth*2, pY+pHeight*5)
+        buttons["PASTE"].resize(pWidth+5, pHeight+5)
         buttons['POPUP'].hide()
-    
+    if(_platform=='darwin'):
+        title.setGeometry(175, 2, fullWinWidth-295, 26)
+        dragBar.setGeometry(175, 2, fullWinWidth-295, 26)
+        title.setAlignment(QtCore.Qt.AlignCenter)
+        if(fullWinWidth>600):
+            title.show()
+            dragBar.hide()
+        else:
+            dragBar.show()
+            title.hide()
+        buttons["exit"].setStyleSheet("""
+            QPushButton
+            {
+                border: none;
+                background-color: #DD0000;
+                color: #DDDDDD;
+                font-weight: bold;
+            }
+            QPushButton::hover
+            {
+                background-color: #BB0000;
+            }
+                    """)
+        for button in ["maximize", "minimize"]:
+            buttons[button].setStyleSheet("""
+            QPushButton
+            {
+                border: none;
+                background-color: #333333;
+                color: #DDDDDD;
+                font-weight: bold;
+            }
+            QPushButton::hover
+            {
+                background-color: #202020;
+            }
+            """)
+        buttons['maximize'].setStyleSheet("""
+            QPushButton
+            {
+                border: none;
+                background-color: #333333;
+                color: #DDDDDD;
+                font-size: 15px;
+                font-weight: bold;
+            }
+            QPushButton::hover
+            {
+                background-color: #202020;
+            }
+            """)
+    for button in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '(', ')', '^(', '√']: #Grey (#333333)
+        buttons[button].setStyleSheet("""
+            QPushButton
+            {
+                border: none;
+                background-color: #333333;
+                font-size:"""+fontsize+"""px;
+                color: #DDDDDD;
+                font-family: \""""+font+"""\";
+                font-weight: bold;
+                width: 25%;
+                border-radius: 0px;
+            }
+            
+
+            
+            #top-left{
+                border-top-left-radius: 3px;
+                }
+            #top-right{
+                border-top-right-radius: 3px;
+                }
+            #bottom-left{
+                border-bottom-left-radius: 3px;
+                }
+            #bottom-right{
+                border-bottom-right-radius: 3px;
+                }
+            QPushButton::hover
+            {
+                background-color: #222222;
+            }
+            """)
+    for button in ['.', '+', '-', '*', '/']:# blue grey (#49525C)
+        buttons[button].setStyleSheet("""
+        QPushButton
+        { 
+            border: none; 
+            background-color: #49525C; 
+            font-size:"""+fontsize+"""px; 
+            color: #DDDDDD; 
+            font-family: \""""+font+"""\";
+            font-weight: bold; 
+            border-radius: 0px;
+        }
+        
+
+        
+        #top-left{
+            border-top-left-radius: 3px;
+            }
+        #top-right{
+            border-top-right-radius: 3px;
+            }
+        #bottom-left{
+            border-bottom-left-radius: 3px;
+            }
+        #bottom-right{
+            border-bottom-right-radius: 3px;
+            }
+        QPushButton::hover
+        {
+            background-color: #222222;
+        }
+        """)
+    for button in ['Del', 'CO', 'CA']:#Dark Grey (#222222)
+        buttons[button].setStyleSheet("""
+        QPushButton 
+        { 
+            border: none; 
+            background-color: #222222; 
+            font-size:"""+fontsize+"""px;
+            color: #DDDDDD; 
+            font-family: \""""+font+"""\";
+            font-weight: bold;
+            border-radius: 0px; 
+        }
+        
+
+        
+        #top-left{
+            border-top-left-radius: 3px;
+            }
+        #top-right{
+            border-top-right-radius: 3px;
+            }
+        #bottom-left{
+            border-bottom-left-radius: 3px;
+            }
+        #bottom-right{
+            border-bottom-right-radius: 3px;
+            }
+        QPushButton::hover
+        {
+            background-color: #111111;
+        }
+        """)
+    for button in ['PI', 'X', 'Y', 'Z', 'A', 'B', 'C', 'E', "GOLDEN-RATIO", "ANS", "EDIT", "PASTE"]: #Turquoise (#33998a)
+        buttons[button].setStyleSheet("""
+        QPushButton
+        {
+            border: none; 
+            background-color: #33998a; 
+            font-size:"""+fontsize+"""px; 
+            color: #DDDDDD; 
+            font-family: \""""+font+"""\";
+            font-weight: bold;
+            border-radius: 0px; 
+        }  
+        
+
+        
+        #top-left{
+            border-top-left-radius: 3px;
+            }
+        #top-right{
+            border-top-right-radius: 3px;
+            }
+        #bottom-left{
+            border-bottom-left-radius: 3px;
+            }
+        #bottom-right{
+            border-bottom-right-radius: 3px;
+            }
+        QPushButton::hover
+        {
+            color: #DDDDDD;
+            background-color: #222222;
+        }
+        """)
+    textbox.setStyleSheet("""
+        QPlainTextEdit
+        {
+            border:none; 
+            background-color: #222222; 
+            font-size:"""+fontsize+"""px; 
+            color: #DDDDDD; 
+            font-family: \""""+font+"""\";
+            font-weight: bold;
+        }
+        """)
     if(fullWinWidth<300 or winHeight<300 or fullWinWidth >= 1100):
         buttons["POPUP"].hide()
     else:
         buttons["POPUP"].show()
-    calc.setStyleSheet(getWindowStyleSheet())
-
-def showCalc():
-    calc.show()
-    calc.raise_()
-    calc.activateWindow()
-
-class MainApplication(QtWidgets.QApplication):
-    def __init__(self, parent):
-        super(MainApplication, self).__init__(parent)
-        self.installEventFilter(self)
-        self._prevAppState = QtCore.Qt.ApplicationActive
-    
-    def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent):
-        if (watched == self and event.type() == QtCore.QEvent.ApplicationStateChange):
-            ev = QtGui.QGuiApplication.applicationState()
-            if (self._prevAppState == QtCore.Qt.ApplicationActive and ev == QtCore.Qt.ApplicationActive):
-                if(_platform=="darwin"):
-                    log("[   OK   ] Dock icon clicked, showing...")
-                    showCalc()
-            self._prevAppState = ev
-
-        
-        return super().eventFilter(watched, event)
+    buttons["POPUP"].setStyleSheet("""
+        QPushButton
+        { 
+            border-radius: 25px;
+            background-color: "#33998a";
+        }
+        QPushButton::hover
+        {
+            background-color: "#222222";
+        }
+        """)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         self.centralwidget = QtWidgets.QWidget(MainWindow)
+        MainWindow.setCentralWidget(self.centralwidget)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
 class Window(QtWidgets.QMainWindow):
@@ -1982,6 +1417,9 @@ class Window(QtWidgets.QMainWindow):
         self.resized.connect(resizeWidgets)
         self.oldPos = self.pos()
         self.canMove=False
+        self.widget = QtWidgets.QWidget(self)
+        self.widget.setObjectName('app')
+
     def resizeEvent(self, event):
         self.resized.emit()
         return super(Window, self).resizeEvent(event)
@@ -2027,34 +1465,10 @@ if(__name__=="__main__"):
             if('debug' in sys.argv[1]):
                 debugging=True
         log("[        ] Welcome to SomePythonThings Calc {0} log. debugging is set to {1}".format(actualVersion, debugging))
-            
-        
-        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
-
-        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
-        
-
-        os.chdir(os.path.expanduser("~"))
-
-        try:
-            readSettings = openSettings()
-            i = 0
-            for key in readSettings.keys():
-                settings[key] = readSettings[key]
-                i +=1
-            log("[   OK   ] Settings loaded (settings={0})".format(str(settings)))
-        except Exception as e:
-            log("[ FAILED ] Unable to read settings! ({0})".format(str(e)))
-            if(debugging):
-                raise e
-        
-        
-        
         if _platform == "linux" or _platform == "linux2":
             log("[   OK   ] Platform is linux")
             os.chdir("/bin/")
             font = "Ubuntu Mono"
-            mathFont = ""
             x_char = "x"
             y_char = "y"
             z_char = "z"
@@ -2071,15 +1485,14 @@ if(__name__=="__main__"):
             realpath = "/bin"
         elif _platform == "darwin":
             log("[   OK   ] Platform is macOS")
-            mathFont = ""
-            font = "Menlo"
+            font = "Courier"
             x_char = "x"
             y_char = "y"
             z_char = "z"
             a_char = "a"
             b_char = "b"
             c_char = "c"
-            e_char = "e"
+            e_char = "π"
             pi_char = "π"
             fi_char = "φ"
             sqr_char="√"
@@ -2095,13 +1508,12 @@ if(__name__=="__main__"):
             else:# os is windows 7/8
                 font="Consolas"#"Consolas"
                 log("[   OK   ] OS detected is win32 release 8 or less ")
-            if(os.path.exists("\\Program Files\\SomePythonThingsCalc\\")):
-                realpath = "/Program Files/SomePythonThingsCalc/"
-                log("[   OK   ] Directory set to /Program Files/SomePythonThingsCalc/")
+            if(os.path.exists("\\Program Files\\SomePythonThingsCalc\\resources-sptmusic")):
+                realpath = "/Program Files/SomePythonThingsCalc/resources-sptmusic"
+                log("[   OK   ] Directory set to /Program Files/SomePythonThingsCalc/resources-sptmusic")
             else:
                 realpath = os.path.dirname(os.path.realpath(__file__)).replace('\\', '/')
                 log("[  WARN  ] Directory /Program Files/SomePythonThingsCalc/ not found, getting working directory...")
-            mathFont = "Cambria Math"
             x_char = "𝑥"
             y_char = "𝑦"
             z_char = "𝑧"
@@ -2117,8 +1529,7 @@ if(__name__=="__main__"):
             minimize_icon = "-"
         else:
             log("[  WARN  ] Platform is unknown")
-            font = ""
-            mathFont = ""
+            font = "Ubuntu Mono"
             x_char = "x"
             y_char = "y"
             z_char = "z"
@@ -2135,293 +1546,348 @@ if(__name__=="__main__"):
             realpath='.'
         resized = QtCore.Signal()
         QtWidgets.QApplication.setStyle('Fusion')
-        app = MainApplication(sys.argv)
-        QtWidgets.QApplication.setStyle('Fusion')
+        app = QtWidgets.QApplication(argv)
+        app.setStyle('Fusion')
         calc = Window()
         calc.resize(900, 500)
         calc.setWindowTitle('SomePythonThings Calc')
+        calc.setStyleSheet('''
+            * {
+                background-color: #333333;
+                color:#EEEEEE; 
+                font-family: "'''+font+'''";
+                font-weight: bold; 
+                font-size:15px;
+            }
+            #app
+            {
+                border-radius: 500px;
+            }
+
+            QSizeGrip{
+                background-color: #333333;
+            }
+            QScrollBar:vertical {
+                background-color: #222222;
+                border:none;
+            }
+            QMenu::item {
+                border: 5px solid #333333;
+                border-right: 10px solid #333333;
+            }
+            QMenu::item:selected {
+                background-color: #000000;
+                border:5px solid  #000000;
+            }
+            QMenuBar::item{
+                background-color: #333333;
+                border:5px solid  #333333;
+
+            }
+            QMenuBar::item:selected{
+                background-color: #000000;
+                border:5px solid  #000000;
+
+            }
+            QPushButton {
+                border: none;
+                height: 30px;
+                width: 100px;
+                border-radius: 3px;
+                background-color:#222222;
+            }
+            QPushButton:hover {
+                border: none;
+                height: 30px;
+                width: 100px;
+                background-color:#111111;
+            }
+
+            QScrollBar
+            {
+                background-color: #222222;
+            }
+
+            QScrollBar:vertical
+            {
+                background-color: #222222;
+            }
+
+            QScrollBar::handle:vertical 
+            {
+                margin-top: px;
+                margin-bottom: 0px;
+                border: none;
+                min-height: 30px;
+                background-color: #333333;
+            }
+
+            QScrollBar::add-line:vertical 
+            {
+                border: none;
+                background-color: #333333;
+                height: 0px;
+            }
+
+            QScrollBar::sub-line:vertical 
+            {
+                border: none;
+                background-color: #333333;
+                height: 0px;
+            }
+
+            #top-left{
+                border-top-left-radius: 3px;
+                }
+            #top-right{
+                border-top-right-radius: 3px;
+                }
+            #all-right{
+                border-radius: 3px;
+                }
+            #bottom-left{
+                border-bottom-left-radius: 3px;
+                }
+            #bottom-right{
+                border-bottom-right-radius: 3px;
+                }
+
+        ''')
         try:
             calc.setWindowIcon(QtGui.QIcon(realpath+"/calc-icon.png"))
         except: pass
         buttons = {}
-        textbox =  QtWidgets.QPlainTextEdit(calc)
-        textbox.move(0, 20)
-        textbox.setWindowOpacity(0.5)
-        textbox.setReadOnly(True)
-        textbox.setPlainText('')
         for number in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
-            buttons[number] = QtWidgets.QPushButton(calc) # number button
+            buttons[number] = QtWidgets.QPushButton(calc, objectName="button") # number button
             buttons[number].setText(str(number))
+            buttons[number].move(1, 1)
             buttons[number].clicked.connect(partial(print_number, str(number)))
         buttons['='] = QtWidgets.QPushButton(calc) # "=" button
         buttons['='].setText('=')
+        buttons['='].setObjectName('top-left')
+        buttons['='].move(1, 1)
         buttons['='].clicked.connect(calculate)
         for operation in ['*', '/', '+', '-', '^(', '√']:
             buttons[operation] = QtWidgets.QPushButton(calc) # operation button
             buttons[operation].setText(str(operation))
+            buttons[operation].move(1, 1)
             buttons[operation].clicked.connect(partial(print_operation, str(operation)))
         for bracket in ['(', ')']:
             buttons[bracket] = QtWidgets.QPushButton(calc) # bracket button
             buttons[bracket].setText(str(bracket))
+            buttons[bracket].move(1, 1)
             buttons[bracket].clicked.connect(partial(print_bracket, str(bracket)))
         buttons['.'] = QtWidgets.QPushButton(calc) # Dot button
         buttons['.'].setText('.')
+        buttons['.'].move(1, 1)
+        buttons['.'].setObjectName('top-right')
         buttons['.'].clicked.connect(dot)
         buttons['Del'] = QtWidgets.QPushButton(calc) # Backspace button (clear one charartcer)
         buttons['Del'].setText('Delete')
+        buttons['Del'].setObjectName('bottom-left')
+        buttons['Del'].move(1, 1)
         buttons['Del'].clicked.connect(delete)
         buttons['CO'] = QtWidgets.QPushButton(calc) # Clear Operation (CO)
         buttons['CO'].setText('Clear')
+        buttons['CO'].move(1, 1)
         buttons['CO'].clicked.connect(clear)
         buttons['CA'] = QtWidgets.QPushButton(calc) # Clear All (CA)
         buttons['CA'].setText('Clear All')
+        buttons['CA'].move(1, 1)
         buttons['CA'].clicked.connect(clear_all)
-        buttons['POPUP'] = QtWidgets.QPushButton(calc)
+        buttons['POPUP'] = QtWidgets.QPushButton(calc) # Clear All (CA)
         buttons['POPUP'].setText("<  ")
+        buttons['POPUP'].move(1, 1)
         buttons['POPUP'].clicked.connect(show_popup)
+        textbox =  QtWidgets.QPlainTextEdit(calc)
+        textbox.move(0, 29)
+        textbox.setWindowOpacity(0.5)
+        textbox.setReadOnly(True)
+        textbox.setPlainText('')
         buttons['PI'] = QtWidgets.QPushButton(calc)
         buttons['PI'].setText(pi_char)
+        buttons['PI'].setObjectName('top-left')
+        buttons['PI'].move(1, 1)
         buttons['PI'].clicked.connect(partial(print_symbol_and_close, pi_char))
         buttons['E'] = QtWidgets.QPushButton(calc)
         buttons['E'].setText(e_char)
+        buttons['E'].move(1, 1)
         buttons['E'].clicked.connect(partial(print_symbol_and_close, e_char))
         buttons['ANS'] = QtWidgets.QPushButton(calc)
         buttons['ANS'].setText("Ans")
+        buttons['ANS'].move(1, 1)
         buttons['ANS'].clicked.connect(ANSWER)
         buttons['GOLDEN-RATIO'] = QtWidgets.QPushButton(calc)
         buttons['GOLDEN-RATIO'].setText(fi_char)
+        buttons['GOLDEN-RATIO'].move(1, 1)
         buttons['GOLDEN-RATIO'].clicked.connect(partial(print_symbol_and_close, fi_char))
         buttons['PASTE'] = QtWidgets.QPushButton(calc)
         buttons['PASTE'].setText("Paste Custom\nOperation")
+        buttons['PASTE'].setObjectName("bottom-left")
+        buttons['PASTE'].move(1, 1)
         buttons['PASTE'].clicked.connect(pasteOperation)
         buttons['EDIT'] = QtWidgets.QPushButton(calc)
         buttons['EDIT'].setText("Edit\nOperation")
+        buttons['EDIT'].move(1, 1)
         buttons['EDIT'].clicked.connect(editOperation)
         buttons['X'] = QtWidgets.QPushButton(calc)
         buttons['X'].setText(x_char)
+        buttons['X'].move(1, 1)
         buttons['X'].clicked.connect(partial(print_symbol_and_close, x_char))
         buttons['Y'] = QtWidgets.QPushButton(calc)
         buttons['Y'].setText(y_char)
+        buttons['Y'].move(1, 1)
         buttons['Y'].clicked.connect(partial(print_symbol_and_close, y_char))
         buttons['Z'] = QtWidgets.QPushButton(calc)
         buttons['Z'].setText(z_char)
+        buttons['Z'].move(1, 1)
         buttons['Z'].clicked.connect(partial(print_symbol_and_close, z_char))
         buttons['A'] = QtWidgets.QPushButton(calc)
         buttons['A'].setText(a_char)
+        buttons['A'].move(1, 1)
         buttons['A'].clicked.connect(partial(print_symbol_and_close, a_char))
         buttons['B'] = QtWidgets.QPushButton(calc)
         buttons['B'].setText(b_char)
+        buttons['B'].move(1, 1)
         buttons['B'].clicked.connect(partial(print_symbol_and_close, b_char))
         buttons['C'] = QtWidgets.QPushButton(calc)
         buttons['C'].setText(c_char)
+        buttons['C'].move(1, 1)
         buttons['C'].clicked.connect(partial(print_symbol_and_close, c_char))
-
-
-        for button in ["SIN", "COS", "TAN", "ARCSIN", "ARCCOS", "ARCTAN"]:
-            buttons[button] = QtWidgets.QPushButton(calc)
-        buttons['SIN'].setText("sine")
-        buttons['SIN'].clicked.connect(partial(print_operation, "sin"))
-        buttons['COS'].setText("cosine")
-        buttons['COS'].clicked.connect(partial(print_operation, "cos"))
-        buttons['TAN'].setText("tangent")
-        buttons['TAN'].clicked.connect(partial(print_operation, "tan"))
-        buttons['ARCSIN'].setText("arcsin")
-        buttons['ARCSIN'].clicked.connect(partial(print_operation, "arcsin"))
-        buttons['ARCCOS'].setText("arccos")
-        buttons['ARCCOS'].clicked.connect(partial(print_operation, "arccos"))
-        buttons['ARCTAN'].setText("arctan")
-        buttons['ARCTAN'].clicked.connect(partial(print_operation, "arctan"))
-
-
-
-        for button in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '(', ')', '^(', '√']: #Grey (#333333)
-            buttons[button].setObjectName("regularButton")
-        for button in ['.', '+', '-', '*', '/']:# blue grey (#49525C)
-            buttons[button].setObjectName("operationButton")
-        for button in ['Del', 'CO', 'CA']:#Dark Grey (#222222)
-            buttons[button].setObjectName("darkButton")
-        for button in ['PI', 'X', 'Y', 'Z', 'A', 'B', 'C', 'E', "GOLDEN-RATIO", "ANS", "EDIT", "PASTE", "SIN", "COS", "TAN", "ARCSIN", "ARCCOS", "ARCTAN"]: #Turquoise (#33998a)
-            buttons[button].setObjectName("equalNormal")
-        for button in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '(', ')', '^(', '√']: #Grey (#333333)
-            buttons[button].setObjectName("regularButton")
-        buttons["POPUP"].setObjectName("popupButton")
-        
-        buttons['='].setStyleSheet('border-top-left-radius: 3px;')
-        buttons['.'].setStyleSheet('border-top-right-radius: 3px;')
-        buttons['/'].setStyleSheet('border-top-left-radius: 3px;')
-        buttons['Del'].setStyleSheet('border-bottom-left-radius: 3px;')
-        buttons['PI'].setStyleSheet('border-top-left-radius: 3px;')
-        buttons['√'].setStyleSheet('border-top-right-radius: 3px;')
-        buttons['PASTE'].setStyleSheet('border-bottom-left-radius: 3px;')
-
         calc.keyRelease.connect(on_key)
-        menuBar = calc.menuBar()
-        menuBar.setNativeMenuBar(False)
-
+        """menuBar = calc.menuBar()
         fileMenu = menuBar.addMenu("File")
         settingsMenu = menuBar.addMenu("Settings")
-        sizeMenu = settingsMenu.addMenu("Resize")
-        trigonoMenu = menuBar.addMenu("Trigonometry")
         helpMenu = menuBar.addMenu("Help")
-
-
-        saveAction = QtWidgets.QAction("Save History", calc)
-        saveAction.setShortcut("Ctrl+S")
-        saveAction.triggered.connect(saveHistory)
-        fileMenu.addAction(saveAction)
-
-        quitAction = QtWidgets.QAction("Quit", calc)
-        quitAction.setShortcut("Ctrl+Q")
-        quitAction.triggered.connect(quitCalc)
-        fileMenu.addAction(quitAction)
-
-        topAction = QtWidgets.QAction("Enable Stay-On-Top mode", calc)
-        topAction.setShortcut("Ctrl+T")
+        saveAction = QtWidgets.QAction(" Save History", calc)
+        saveAction.setShortcut("")
+        quitAction = QtWidgets.QAction(" Quit", calc)
+        quitAction.setShortcut("")
+        topAction = QtWidgets.QAction(" Enable Stay-On-Top mode", calc)
         topAction.setCheckable(True)
-        topAction.triggered.connect(showOnTop)
-
-        openHelpAction = QtWidgets.QAction("Online manual", calc)
-        openHelpAction.triggered.connect(openHelp)
-        helpMenu.addAction(openHelpAction)
-
-        updatesAction = QtWidgets.QAction("Check for updates", calc)
+        openHelpAction = QtWidgets.QAction(" Online manual", calc)
+        openHelpAction.setShortcut("")
+        aboutAction = QtWidgets.QAction(" About SomePythonThings Calc", calc)
+        aboutAction.setShortcut("")
+        logAction = QtWidgets.QAction("   Open Log", calc)
+        logAction.setShortcut("")
+        updatesAction = QtWidgets.QAction(" Check for updates", calc)
+        updatesAction.setShortcut("")
+        reinstallAction = QtWidgets.QAction("   Re-install SomePythonThings Calc", calc)
+        reinstallAction.setShortcut("")
         updatesAction.triggered.connect(checkDirectUpdates)
-        helpMenu.addAction(updatesAction)
-
-        aboutAction = QtWidgets.QAction("About SomePythonThings Calc", calc)
-        aboutAction.triggered.connect(partial(throw_info, "About SomePythonThings Calc", "SomePythonThings Calc\nVersion "+str(actualVersion)+"\n\nThe SomePythonThings Project\n\n © 2021 Martí Climent, SomePythonThings\nhttps://www.somepythonthings.tk\n\n\nThe iconset has a CC Non-Commercial Atribution 4.0 License"))
-        helpMenu.addAction(aboutAction)
-
-        openSettingsAction = QtWidgets.QAction("Settings    ", calc)
-        openSettingsAction.triggered.connect(openSettingsWindow)
-        settingsMenu.addAction(openSettingsAction)
-
-        logAction = QtWidgets.QAction("Open Log", calc)
-        logAction.triggered.connect(openLog)
-        settingsMenu.addAction(logAction)
-
-        reinstallAction = QtWidgets.QAction("Re-install SomePythonThings Calc", calc)
+        quitAction.triggered.connect(quitCalc)
         reinstallAction.triggered.connect(reinstallCalc)
+        saveAction.triggered.connect(saveHistory)
+        aboutAction.triggered.connect(partial(throw_info, "About SomePythonThings Calc", "SomePythonThings Calc\nVersion "+str(actualVersion)+"\n\nThe SomePythonThings Project\n\n © 2021 Martí Climent, SomePythonThings\nhttps://www.somepythonthings.tk\n\n\nThe iconset has a CC Non-Commercial Atribution 4.0 License"))
+        openHelpAction.triggered.connect(openHelp)
+        logAction.triggered.connect(openLog)
+        topAction.triggered.connect(showOnTop)
+        fileMenu.addAction(saveAction)
+        fileMenu.addAction(quitAction)
+        helpMenu.addAction(openHelpAction)
+        helpMenu.addAction(updatesAction)
+        helpMenu.addAction(aboutAction)
         settingsMenu.addAction(reinstallAction)
-
+        settingsMenu.addAction(logAction)
+        sizeMenu = settingsMenu.addMenu("   Resize")
         settingsMenu.addAction(topAction)
-        minResize = QtWidgets.QAction("Mini", calc)
+        minResize = QtWidgets.QAction(" Mini", calc)
+        smallResize = QtWidgets.QAction(" Small", calc)
+        mediumResize = QtWidgets.QAction(" Medium     ", calc)
+        wideResize = QtWidgets.QAction(" Wide", calc)
+        bigResize = QtWidgets.QAction(" Big", calc)
+        giantResize = QtWidgets.QAction(" Huge", calc)
         minResize.triggered.connect(partial(resizeWidgets, True, 250, 210))
-        sizeMenu.addAction(minResize)
-
-        smallResize = QtWidgets.QAction("Small", calc)
         smallResize.triggered.connect(partial(resizeWidgets, True, 500, 400))
-        sizeMenu.addAction(smallResize)
-
-        mediumResize = QtWidgets.QAction("Medium     ", calc)
         mediumResize.triggered.connect(partial(resizeWidgets, True, 500, 900))
-        sizeMenu.addAction(mediumResize)
-
-        wideResize = QtWidgets.QAction("Wide", calc)
         wideResize.triggered.connect(partial(resizeWidgets, True, 500, 1100))
-        sizeMenu.addAction(wideResize)
-
-        bigResize = QtWidgets.QAction("Big", calc)
         bigResize.triggered.connect(partial(resizeWidgets, True, 750, 1200))
-        sizeMenu.addAction(bigResize)
-
-        giantResize = QtWidgets.QAction("Huge", calc)
         giantResize.triggered.connect(partial(resizeWidgets, True, 900, 1500))
-        sizeMenu.addAction(giantResize)
-
-        for _ in range(4):
-            separator = QtWidgets.QAction("      ", calc)
-            separator.setEnabled(False)
-            menuBar.addAction(separator)
-
-        angleAction = QtWidgets.QAction(calc)
-        angleAction.triggered.connect(changeAngleUnit)
-        menuBar.addAction(angleAction)
-
-        sinAction = QtWidgets.QAction("Sine", calc)
-        sinAction.triggered.connect(partial(print_operation, "sin"))
-        sinAction.setShortcut("Shift+S")
-        trigonoMenu.addAction(sinAction)
-        cosAction = QtWidgets.QAction("Cosine", calc)
-        cosAction.triggered.connect(partial(print_operation, "cos"))
-        cosAction.setShortcut("Shift+C")
-        trigonoMenu.addAction(cosAction)
-        tanAction = QtWidgets.QAction("Tangent", calc)
-        tanAction.triggered.connect(partial(print_operation, "tan"))
-        tanAction.setShortcut("Shift+T")
-        trigonoMenu.addAction(tanAction)
-        arcsinAction = QtWidgets.QAction("Arcsine", calc)
-        arcsinAction.triggered.connect(partial(print_operation, "arcsin"))
-        arcsinAction.setShortcut("Ctrl+Shift+S")
-        trigonoMenu.addAction(arcsinAction)
-        arccosAction = QtWidgets.QAction("Arccosine", calc)
-        arccosAction.triggered.connect(partial(print_operation, "arccos"))
-        arccosAction.setShortcut("Ctrl+Shift+C")
-        trigonoMenu.addAction(arccosAction)
-        arctanAction = QtWidgets.QAction("Arctangent", calc)
-        arctanAction.triggered.connect(partial(print_operation, "arctan"))
-        arctanAction.setShortcut("Ctrl+Shift+T")
-        trigonoMenu.addAction(arctanAction)
-
-
-
+        sizeMenu.addAction(minResize)
+        sizeMenu.addAction(smallResize)
+        sizeMenu.addAction(mediumResize)
+        sizeMenu.addAction(wideResize)
+        sizeMenu.addAction(bigResize)
+        sizeMenu.addAction(giantResize)"""
         if(_platform=='darwin'):
-            newMenuBar = QtWidgets.QMenuBar(calc)
-            newMenuBar.setNativeMenuBar(True)
+            buttons['exit'] = QtWidgets.QPushButton(calc)
+            buttons['exit'].setObjectName("all-right")
+            buttons['exit'].setText(close_icon)
+            buttons['exit'].move(1, 1)
+            buttons['exit'].clicked.connect(quitCalc)
+            buttons['minimize'] = QtWidgets.QPushButton(calc)
+            buttons['minimize'].setText(minimize_icon)
+            buttons['minimize'].move(1, 1)
+            buttons['minimize'].clicked.connect(minimizeCalc)
+            buttons['maximize'] = QtWidgets.QPushButton(calc)
+            buttons['maximize'].setText(maximize_icon)
+            buttons['maximize'].move(1, 1)
+            buttons['maximize'].clicked.connect(partial(maximizeCalc, 'center'))
+            dragBar = QtWidgets.QLabel(calc)
+            dragBar.move(1, 1)
+            dragBar.hide()
+            title = QtWidgets.QLabel(calc)
+            title.setText("SomePythonThings Calc")
+            title.setAlignment(QtCore.Qt.AlignCenter)
+            title.move(2, 2)
+            grips = {}
+            grips['bottom-right'] = QtWidgets.QSizeGrip(calc)
+            grips['bottom-right'].setGeometry(int(calc.width()/2)+1, int(calc.height()-2), int(calc.width()/2), 2)
+            grips['right-bottom'] = QtWidgets.QSizeGrip(calc)
+            grips['right-bottom'].setGeometry(int(calc.width())-2, int(calc.height()/2)+1, 2, int(calc.height()/2))
+            grips['bottom-left'] = QtWidgets.QSizeGrip(calc)
+            grips['bottom-left'].setGeometry(0, int(calc.height()-2), int(calc.width()/2), 2)
+            grips['left-bottom'] = QtWidgets.QSizeGrip(calc)
+            grips['left-bottom'].setGeometry(0, int(calc.height()/2)+1, 2, int(calc.height()/2))
+            grips['top-right'] = QtWidgets.QSizeGrip(calc)
+            grips['top-right'].setGeometry(int(calc.width()/2)+1, 0, int(calc.width()/2), 2)
+            grips['right-top'] = QtWidgets.QSizeGrip(calc)
+            grips['right-top'].setGeometry(int(calc.width())-2, 0, 2, int(calc.height()/2))
+            grips['top-left'] = QtWidgets.QSizeGrip(calc)
+            grips['top-left'].setGeometry(0, 0, int(calc.width()/2), 2)
+            grips['left-top'] = QtWidgets.QSizeGrip(calc)
+            grips['left-top'].setGeometry(0, 0, 2, int(calc.height()/2))
+            flags = QtCore.Qt.WindowFlags(QtCore.Qt.FramelessWindowHint)
+            #calc.setWindowFlags(flags)
+        for button in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '(', ')', '^(', '√']: #Grey (#333333)
+            buttons[button].setStyleSheet("""
+                QPushButton
+                {
+                    border: none;
+                    background-color: #333333;
+                    color: #DDDDDD;
+                    width: 25%;
+                    border-radius: 0px;
+                }
+                
 
-            fileMenu = newMenuBar.addMenu("File")
-            settingsMenu = newMenuBar.addMenu("Settings")
-            sizeMenu = settingsMenu.addMenu("Resize")
-            trigonoMenu = newMenuBar.addMenu("Trigonometry")
-            helpMenu = newMenuBar.addMenu("Help")
-
-            fileMenu.addAction(saveAction)
-            fileMenu.addAction(quitAction)
-            helpMenu.addAction(openHelpAction)
-            helpMenu.addAction(updatesAction)
-            helpMenu.addAction(aboutAction)
-            settingsMenu.addAction(openSettingsAction)
-            settingsMenu.addAction(logAction)
-            settingsMenu.addAction(reinstallAction)
-            sizeMenu.addAction(minResize)
-            sizeMenu.addAction(smallResize)
-            sizeMenu.addAction(mediumResize)
-            sizeMenu.addAction(wideResize)
-            sizeMenu.addAction(bigResize)
-            sizeMenu.addAction(giantResize)
-
-            for _ in range(4):
-                separator = QtWidgets.QAction("      ", calc)
-                separator.setEnabled(False)
-                newMenuBar.addAction(separator)
-
-            newMenuBar.addAction(angleAction)
-
-            trigonoMenu.addAction(sinAction)
-            trigonoMenu.addAction(cosAction)
-            trigonoMenu.addAction(tanAction)
-            trigonoMenu.addAction(arcsinAction)
-            trigonoMenu.addAction(arccosAction)
-            trigonoMenu.addAction(arctanAction)
-
-
-
-        if(settings["angleUnit"] == "degree"):
-            log("[   OK   ] Calculator in degrees")
-            angleAction.setText("Degrees (deg)")
-        else:
-            log("[   OK   ] Calculator in radians")
-            angleAction.setText("Radians (rad)")
-
-
+                
+                #top-left{
+                    border-top-left-radius: 3px;
+                    }
+                #top-right{
+                    border-top-right-radius: 3px;
+                    }
+                #bottom-left{
+                    border-bottom-left-radius: 3px;
+                    }
+                #bottom-right{
+                    border-bottom-right-radius: 3px;
+                    }
+                QPushButton::hover
+                {
+                    background-color: #222222;
+                }
+                """)
         resizeWidgets()
         calc.setMinimumSize(210, 250)
         print_symbol(x_char)
         calc.show()
         clear_all()
-
-        Thread(target=checkUpdates, daemon=True).start()
-        Thread(target=checkModeThread, daemon=True).start()
+        t = Thread(target=checkUpdates)
+        t.daemon = True
+        #t.start()
         app.exec_()
     except Exception as e:
         log("[ FAILED ] A FATAL ERROR OCCURRED. PROGRAM WILL BE TERMINATED AFTER ERROR REPORT")
